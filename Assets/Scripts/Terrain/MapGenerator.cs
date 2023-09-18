@@ -1,15 +1,16 @@
 using UnityEngine;
-using static Noise;
+using static NoiseGenerator;
 
 public class MapGenerator : MonoBehaviour {
-    // DrawMode for texture
+    public enum MapType { HeightMap, ComplexMap };
     public enum DrawMode { ColorMap, TerrainMap };
-    public DrawMode drawMode;
-
-    public InterpolateMode interpolateMode;
-    public LocalInterpolateMode localInterpolateMode;
 
     #region NoiseSettings
+    [Header("Noise")]
+    public MapType mapType = MapType.HeightMap;
+    public NoiseInterpolateMode noiseInterpolateMode;
+    public NoiseLocalInterpolateMode noiseLocalInterpolateMode;
+
     public int seed = 1;
     public float scale = 20;
     public const int dimensions = 241;
@@ -21,29 +22,68 @@ public class MapGenerator : MonoBehaviour {
     public int octaves = 4;
     #endregion
 
-    #region TextureSettings
-    public int meshHeightMultiplier;
-    public Color color;
+    #region MeshSettings
+    [Header("Mesh")]
+    //3D
+    [HideInInspector]
+    public int levelOfDetail = 5;
+    [Range(0, 1)]
+    public float threshhold = 0.5f;
+
+    //2D
+    [HideInInspector]
+    public int heightModifier = 50;
+    [HideInInspector]
     public AnimationCurve meshHeightCurve;
+    #endregion
+
+    #region TextureSettings
+    [Header("Texture")]
+    public DrawMode drawMode;
+    [HideInInspector]
+    public Color color;
+    [HideInInspector]
     public TerrainType[] terrainTypes;
     #endregion
 
-    public MapData GenerateMap(Vector3 ? inputOffset = null, NoiseData ? noiseData = null) {
+    //TODO Fix NoiseData3D>2D casting issue
+    //TODO MeshData for 3D
+        //Finish Marching Cubes algorithm
+    //TODO ColorMaps for 2D
+
+    //TODO Figure out how to make the 2D 3D thing cleaner.
+
+    public MapData GenerateMap(Vector3 ? inputOffset = null, NoiseData3D ? noiseData = null) {
+
         Vector3 regionOffset = mapOffset + (inputOffset ?? Vector3.zero);
 
-        noiseData ??= GenerateNoise(seed, scale, dimensions, regionOffset, lacunarity, persistence, octaves, interpolateMode, localInterpolateMode);
+        //switch(mapType) {
+        //    case MapType.HeightMap:
+        //        noiseData ??= GenerateNoise2D(
+        //                                seed,
+        //                                scale,
+        //                                dimensions,
+        //                                regionOffset,
+        //                                lacunarity,
+        //                                persistence,
+        //                                octaves,
+        //                                noiseInterpolateMode,
+        //                                noiseLocalInterpolateMode
+        //                            );
+        //        meshData = GenerateMeshData(dimensions, noiseData.Value.map, heightModifier, meshHeightCurve);
+        //}
+        MeshData meshData = MarchCubes(dimensions, noiseData.Value.map);
         Color[] colorMap = GenerateColorMap(noiseData.Value.map);
-        MeshData meshData = GenerateMeshData(dimensions, noiseData.Value.map, meshHeightMultiplier, meshHeightCurve);
 
         return new MapData(dimensions, noiseData.Value, colorMap, meshData);
     }
 
     public MapData NormalizeMap(MapData mapData, float globalMin, float globalMax) {
-        return GenerateMap(null, Noise.NormalizeNoise(mapData.noiseData, globalMin, globalMax));
+        return GenerateMap(null, NormalizeNoise3D(mapData.noiseData, globalMin, globalMax));
     }
 
     #region ColorMapGeneration
-    private Color[] GenerateColorMap(float[,] map) {
+    private Color[] GenerateColorMap(float[,,] map) {
         Color[] colorMap;
         switch (drawMode) {
             case DrawMode.TerrainMap:
@@ -56,28 +96,29 @@ public class MapGenerator : MonoBehaviour {
         return colorMap;
     }
 
-    private static Color[] GenerateForColorMap(int dimensions, float[,] map, Color color) {
+    private static Color[] GenerateForColorMap(int dimensions, float[,,] map, Color color) {
         Color[] colorMap = new Color[dimensions * dimensions];
         for (int y = 0; y < dimensions; y++) {
-            //for int z
-            for (int x = 0; x < dimensions; x++) {
-                //Debug.Log("map[" + x + ", " + y + "] = " + map[x, y]);
-                colorMap[y * dimensions + x] = new Color(map[x, y] * color.r, map[x, y] * color.g, map[x, y] * color.b);
+            for (int z = 0; z < dimensions; z++) {
+                for (int x = 0; x < dimensions; x++) {
+                    colorMap[(y + z * dimensions) * dimensions + x] = new Color(map[x, y, z] * color.r, map[x, y, z] * color.g, map[x, y, z] * color.b);
+                }
             }
         }
 
         return colorMap;
     }
 
-    private static Color[] GenerateForTerrainMap(int dimensions, float[,] map, TerrainType[] terrainTypes) {
+    private static Color[] GenerateForTerrainMap(int dimensions, float[,,] map, TerrainType[] terrainTypes) {
         Color[] colorMap = new Color[dimensions * dimensions];
         for (int y = 0; y < dimensions; y++) {
             for (int x = 0; x < dimensions; x++) {
-                //for int z
-                foreach (TerrainType terrainType in terrainTypes) {
-                    if (map[x, y] <= terrainType.heightThreshold) {
-                        colorMap[y * dimensions + x] = terrainType.colour;
-                        break;
+                for (int z = 0; z < dimensions; z++) {
+                    foreach (TerrainType terrainType in terrainTypes) {
+                        if (map[x, y, z] <= terrainType.heightThreshold) {
+                            colorMap[y * dimensions + x] = terrainType.colour;
+                            break;
+                        }
                     }
                 }
             }
@@ -88,6 +129,48 @@ public class MapGenerator : MonoBehaviour {
     #endregion
 
     #region MeshGeneration
+    
+
+    public MeshData MarchCubes(int dimensions, float[,,] map) {
+
+        int edgeSize = dimensions / levelOfDetail;
+        float[] cubeVertices = new float[8];
+        int cubeIndex = 0;
+
+        for (int x = 0; x < dimensions; x += edgeSize) {
+            for (int y = 0; y < dimensions; y += edgeSize) {
+                for (int z = 0; z < dimensions; z += edgeSize) {
+                    cubeVertices[0] = map[x, y, z];
+                    cubeVertices[1] = map[x + 1, y, z];
+                    cubeVertices[2] = map[x, y + 1, z];
+                    cubeVertices[3] = map[x, y, z + 1];
+                    cubeVertices[4] = map[x + 1, y, z + 1];
+                    cubeVertices[5] = map[x + 1, y + 1, z];
+                    cubeVertices[6] = map[x, y + 1, z + 1];
+                    cubeVertices[7] = map[x + 1, y + 1, z + 1];
+
+                    for (int i = 0; i < cubeVertices.Length; i++) {
+                        if (cubeVertices[i] < threshhold) {
+                            cubeIndex = 1 << i;
+                        }
+                    }
+
+                    int[] edges = MarchingCubesConstants.triangulationTable[cubeIndex];
+                    int[] triangleVertices = new int[edges.Length];
+
+                    for (int i = 0, edgeIntersect = 0; i < edges.Length; i++) {
+                        edgeIntersect = 1 << i;
+                        if ((MarchingCubesConstants.edgeTable[i] & edgeIntersect) == edgeIntersect) {
+                            //triangleVertices[i] = Interpolate(threshhold, , map[x,y,z], )
+                        }
+                    }
+                }
+            }
+        }
+
+        return new MeshData();
+    }
+
     public static MeshData GenerateMeshData(int dimensions, float[,] map, float heightModifier, AnimationCurve heightCurve) {
         MeshData meshData = new MeshData(dimensions, dimensions);
 
@@ -115,16 +198,32 @@ public class MapGenerator : MonoBehaviour {
         if (octaves < 0) {
             octaves = 0;
         }
+        if (levelOfDetail < 5) {
+            levelOfDetail = 5;
+        }
+        if (mapType == MapType.HeightMap && (mapOffset.z > 0 || mapOffset.z < 0)) {
+            mapOffset = new Vector3(mapOffset.x, mapOffset.y, 0);
+        }
+        while (levelOfDetail % dimensions - 1 != 0) {
+            levelOfDetail += 1;
+        }
+    }
+
+    [System.Serializable]
+    public struct TerrainType {
+        public string name;
+        public float heightThreshold;
+        public Color colour;
     }
 
     #region Data Structs
     public struct MapData {
         public int dimensions;
-        public Noise.NoiseData noiseData;
+        public NoiseData3D noiseData;
         public Color[] colorMap;
         public MeshData meshData;
 
-        public MapData(int dimensions, Noise.NoiseData noiseData, Color[] colorMap, MeshData meshData) {
+        public MapData(int dimensions, NoiseData3D noiseData, Color[] colorMap, MeshData meshData) {
             this.dimensions = dimensions;
             this.noiseData = noiseData;
             this.colorMap = colorMap;
@@ -164,11 +263,4 @@ public class MapGenerator : MonoBehaviour {
         }
     }
     #endregion
-
-    [System.Serializable]
-    public struct TerrainType {
-        public string name;
-        public float heightThreshold;
-        public Color colour;
-    }
 }

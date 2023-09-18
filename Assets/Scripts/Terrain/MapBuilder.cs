@@ -38,6 +38,7 @@ public class MapBuilder : MonoBehaviour {
             regions[key].UpdateRegion(normalizedData);
         }
     }
+
     public void ClearMap() {
         if (regions.Count < 1)
             return;
@@ -53,7 +54,6 @@ public class MapBuilder : MonoBehaviour {
             return;
         BuildMap();
     }
-
 
     private class Region {
         public GameObject terrain;
