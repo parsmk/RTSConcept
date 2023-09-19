@@ -1,10 +1,14 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using static MapGenerator;
 
 public class MapBuilder : MonoBehaviour {
     public GameObject mapWrapper;
     public Material meshMaterial;
+
+    public enum MapType { HeightMap, ComplexMap };
+    public MapType mapType = MapType.HeightMap;
 
     public bool autoUpdate = false;
 
@@ -20,7 +24,7 @@ public class MapBuilder : MonoBehaviour {
         for (int x = 0; x < mapRegionDimensions; x++) {
             for (int y = 0; y < mapRegionDimensions; y++) {
                 Vector2 coord = new Vector2(x, y) * regionSize;
-                MapData mapData = mapGen.GenerateMap(coord);
+                MapData2D mapData = mapGen.GenerateMap2D(coord);
 
                 if (!regions.ContainsKey(coord)) {
                     regions.Add(coord, new Region(mapData, coord, mapWrapper.transform, meshMaterial));
@@ -34,8 +38,10 @@ public class MapBuilder : MonoBehaviour {
         }
 
         foreach (Vector2 key in regions.Keys) {
-            MapData normalizedData = mapGen.NormalizeMap(regions[key].mapData, minMapHeight, maxMapHeight);
+            MapData2D normalizedData = mapGen.NormalizeMap((MapData2D)regions[key].mapData, minMapHeight, maxMapHeight);
             regions[key].UpdateRegion(normalizedData);
+
+            NoiseGenerator.ExportMap(normalizedData.noiseData);
         }
     }
 
@@ -50,21 +56,20 @@ public class MapBuilder : MonoBehaviour {
     }
 
     private void OnValidate() {
-        if (!autoUpdate)
-            return;
-        BuildMap();
+        if (autoUpdate)
+            BuildMap();
     }
 
     private class Region {
         public GameObject terrain;
-        public MapData mapData;
-        public Vector2 position = Vector2.zero;
+        public MapData3D mapData;
+        public Vector3 position = Vector3.zero;
 
         public MeshRenderer terrainMeshRenderer;
         public MeshFilter terrainMeshFilter;
         public Material terrainMaterial;
 
-        public Region(MapData mapData, Vector2 inputCoord, Transform parent, Material material) {
+        public Region(MapData3D mapData, Vector3 inputCoord, Transform parent, Material material) {
             this.mapData = mapData;
             // Position and generate Terrain GameObject
             position = inputCoord;
@@ -82,7 +87,7 @@ public class MapBuilder : MonoBehaviour {
             terrainMeshFilter.sharedMesh = mapData.meshData.CreateMesh();
         }
 
-        public void UpdateRegion(MapData mapData) {
+        public void UpdateRegion(MapData3D mapData) {
             this.mapData = mapData;
             terrainMeshRenderer.sharedMaterial.mainTexture = GenerateRegionTexture();
             terrainMeshFilter.sharedMesh = mapData.meshData.CreateMesh();

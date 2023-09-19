@@ -1,10 +1,36 @@
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public static class NoiseGenerator {
     public enum NoiseInterpolateMode { Hermite, Lerp };
     public enum NoiseLocalInterpolateMode { SmoothStep, Fade };
 
-    #region 3D
+    public struct NoiseData2D {
+        public int dimensions;
+        public float localMax;
+        public float localMin;
+        public float[,] map;
+
+        public NoiseData2D(int dimensions, float localMax, float localMin, float[,] map) {
+            this.dimensions = dimensions;
+            this.localMax = localMax;
+            this.localMin = localMin;
+            this.map = map;
+        }
+
+        public static implicit operator NoiseData2D(NoiseData3D noiseData3D) {
+            float[,] newMap = new float[noiseData3D.dimensions, noiseData3D.dimensions];
+            for (int y = 0; y < noiseData3D.dimensions; y++) {
+                for (int x = 0; x < noiseData3D.dimensions; x++) {
+                    newMap[x, y] = noiseData3D.map[x, y, 0];
+                }
+            }
+            return new NoiseData2D(noiseData3D.dimensions, noiseData3D.localMax, noiseData3D.localMin, newMap);
+        }
+    }
+
     public struct NoiseData3D {
         public int dimensions;
         public float localMax;
@@ -18,20 +44,95 @@ public static class NoiseGenerator {
             this.map = map;
         }
 
-        public static implicit operator NoiseData3D(NoiseData2D noiseData) {
-            return new NoiseData2D(noiseData.dimensions, noiseData.localMax, noiseData.localMin, noiseData.map);
+        public static implicit operator NoiseData3D(NoiseData2D noiseData2D) {
+            float[,,] newMap = new float[noiseData2D.dimensions, noiseData2D.dimensions, noiseData2D.dimensions];
+            for (int y = 0; y < noiseData2D.dimensions; y++) {
+                for (int x = 0; x < noiseData2D.dimensions; x++) {
+                    newMap[x, y, 0] = noiseData2D.map[x, y];
+                }
+            }
+            return new NoiseData3D(noiseData2D.dimensions, noiseData2D.localMax, noiseData2D.localMin, newMap);
         }
     }
-    public static NoiseData3D GenerateNoise3D(
+
+    public static NoiseData2D GenerateNoise(
             int seed,
             float scale,
             int dimensions,
-            Vector3 offset,
+            Vector2 offset,
             float lacunarity,
             float persistence,
             int octaves,
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode
+    ) {
+
+        float[,] map = new float[dimensions, dimensions];
+
+        System.Random prng = new System.Random(seed);
+        Vector2[] octaveOffsets = new Vector2[octaves];
+
+        // Random points on the noiseMap are chosen to act as starting points then we add the custom offset.
+        for (int i = 0; i < octaves; i++) {
+            float offsetX = prng.Next(-100000, 100000) + offset.x;
+            float offsetY = prng.Next(-100000, 100000) + offset.y;
+            octaveOffsets[i] = new Vector2(offsetX, offsetY);
+        }
+
+        float maxNoiseHeight = float.MinValue;
+        float minNoiseHeight = float.MaxValue;
+
+        // Loop through all the points in the map
+        for (int y = 0; y < dimensions; y++) {
+            for (int x = 0; x < dimensions; x++) {
+                // Reset the amplitude, frequency and noiseHeight
+                float amplitude = 1;
+                float frequency = 1;
+                float noiseHeight = 0f;
+
+                // For each layer of noise (octave)
+                for (int i = 0; i < octaves; i++) {
+                    // perform f(x) = a*perlin(freq*x + c) solved for f(y) as well.
+                    // sampleX = (freq*x + c)
+                    float sampleX = frequency * (x + octaveOffsets[i].x) / scale;
+                    // sampleY = (freq*y + c)
+                    float sampleY = frequency * (y + octaveOffsets[i].y) / scale;
+                    // a * perlin(sampleX) && a * perlin(sampleY)
+                    // *2 - 1 to include negative values
+                    noiseHeight += amplitude * (Perlin(interpolateMode, localInterpolateMode, sampleX, sampleY) * 2 - 1);
+
+                    //Change the amplitude and frequency based on a multiplier
+
+                    //The amplitude will determine how gray a point will become. The higher this number is the more extreme the gray. i.e (x,y) -> 1 more black.
+                    //Persistence will thus determine how regular the greys are.
+                    amplitude *= persistence;
+                    //The frequency adds more points the higher it is. This means more gray, black and white points.
+                    //Lacunarity then further complicates this by incrementing frequency over a smaller area (octave).
+                    frequency *= lacunarity;
+                }
+
+                if (noiseHeight > maxNoiseHeight) {
+                    maxNoiseHeight = noiseHeight;
+                } else if (noiseHeight < minNoiseHeight) {
+                    minNoiseHeight = noiseHeight;
+                }
+                map[x, y] = noiseHeight;
+            }
+        }
+
+        return new NoiseData2D(dimensions, maxNoiseHeight, minNoiseHeight, map);
+    }
+
+    public static NoiseData3D GenerateNoise(
+        int seed,
+        float scale,
+        int dimensions,
+        Vector3 offset,
+        float lacunarity,
+        float persistence,
+        int octaves,
+        NoiseInterpolateMode interpolateMode,
+        NoiseLocalInterpolateMode localInterpolateMode
     ) {
 
         float[,,] map = new float[dimensions, dimensions, dimensions];
@@ -70,7 +171,7 @@ public static class NoiseGenerator {
                         float sampleZ = frequency * (z + octaveOffsets[i].z) / scale;
                         // a * perlin(sampleX) && a * perlin(sampleY)
                         // *2 - 1 to include negative values
-                        noiseHeight += amplitude * (Perlin3D(interpolateMode, localInterpolateMode, sampleX, sampleY, sampleZ) * 2 - 1);
+                        noiseHeight += amplitude * (Perlin(interpolateMode, localInterpolateMode, sampleX, sampleY, sampleZ) * 2 - 1);
 
                         //Change the amplitude and frequency based on a multiplier
 
@@ -95,7 +196,18 @@ public static class NoiseGenerator {
         return new NoiseData3D(dimensions, maxNoiseHeight, minNoiseHeight, map);
     }
 
-    public static NoiseData3D NormalizeNoise3D(NoiseData3D noiseData, float inputMin, float inputMax) {
+    public static NoiseData2D NormalizeNoise(NoiseData2D noiseData, float inputMin, float inputMax) {
+        float[,] normalizedMap = new float[noiseData.dimensions, noiseData.dimensions];
+        for (int x = 0; x < noiseData.dimensions; x++) {
+            for (int y = 0; y < noiseData.dimensions; y++) {
+                normalizedMap[x, y] = Mathf.InverseLerp(inputMin, inputMax, noiseData.map[x, y]);
+            }
+        }
+
+        return new NoiseData2D(noiseData.dimensions, inputMax, inputMin, normalizedMap);
+    }
+
+    public static NoiseData3D NormalizeNoise(NoiseData3D noiseData, float inputMin, float inputMax) {
         float[,,] normalizedMap = new float[noiseData.dimensions, noiseData.dimensions, noiseData.dimensions];
         for (int x = 0; x < noiseData.dimensions; x++) {
             for (int y = 0; y < noiseData.dimensions; y++) {
@@ -108,7 +220,48 @@ public static class NoiseGenerator {
         return new NoiseData3D(noiseData.dimensions, inputMax, inputMin, normalizedMap);
     }
 
-    private static float Perlin3D(
+    private static float Perlin(
+            NoiseInterpolateMode interpolateMode,
+            NoiseLocalInterpolateMode localInterpolateMode,
+            float x, float y
+    ) {
+        if (permutationTable is null)
+            GeneratePermutationTable();
+
+        int uCubeX = (int)x & 255;
+        int uCubeY = (int)y & 255;
+
+        float deltaX = x - Mathf.Floor(x);
+        float deltaY = y - Mathf.Floor(y);
+
+        //Vector from Unit Cube vertex (x,y) to coordinate
+        Vector2 vector00 = new Vector2(deltaX, deltaY);
+        Vector2 vector10 = new Vector2(deltaX - 1, deltaY);
+        Vector2 vector01 = new Vector2(deltaX, deltaY - 1);
+        Vector2 vector11 = new Vector2(deltaX - 1, deltaY - 1);
+
+        //randomValue from Unit Cube vertex (x,y)
+        int value00 = permutationTable[ChoosePermutationIndex(uCubeX, uCubeY, uCubeX + uCubeY % 255)];
+        int value10 = permutationTable[ChoosePermutationIndex(1 + uCubeX, uCubeY, 1 + uCubeX + uCubeY % 255)];
+        int value01 = permutationTable[ChoosePermutationIndex(uCubeX, 1 + uCubeY, 1 + uCubeX + uCubeY % 255)];
+        int value11 = permutationTable[ChoosePermutationIndex(uCubeX + 1, uCubeY + 1, 2 + uCubeX + uCubeY % 255)];
+
+        //Dot product of vector pointing to grid point and constant vector determined by randomValue
+        float dot00 = Vector3.Dot(vector00, NoiseConstants.constantVectors3D[value00 & 3]);
+        float dot10 = Vector3.Dot(vector10, NoiseConstants.constantVectors3D[value10 & 3]);
+        float dot01 = Vector3.Dot(vector01, NoiseConstants.constantVectors3D[value01 & 3]);
+        float dot11 = Vector3.Dot(vector11, NoiseConstants.constantVectors3D[value11 & 3]);
+
+        float smoothDeltaX = LocalInterpolate(localInterpolateMode, deltaX);
+        float smoothDeltaY = LocalInterpolate(localInterpolateMode, deltaY);
+
+        float interpolatedHorizontalEdge = Interpolate(interpolateMode, dot00, dot10, smoothDeltaX);
+        float interpolatedVerticalEdge = Interpolate(interpolateMode, dot01, dot11, smoothDeltaX);
+
+        return Interpolate(interpolateMode, interpolatedHorizontalEdge, interpolatedVerticalEdge, smoothDeltaY);
+    }
+
+    private static float Perlin(
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode,
             float x, float y, float z
@@ -168,141 +321,48 @@ public static class NoiseGenerator {
 
         return Interpolate(interpolateMode, interpolatedCloseFace, interpolatedFarFace, smoothDeltaZ);
     }
-    #endregion
 
-    #region 2D
-    public struct NoiseData2D {
-        public int dimensions;
-        public float localMax;
-        public float localMin;
-        public float[,] map;
-
-        public NoiseData2D(int dimensions, float localMax, float localMin, float[,] map) {
-            this.dimensions = dimensions;
-            this.localMax = localMax;
-            this.localMin = localMin;
-            this.map = map;
-        }
-    }
-
-    public static NoiseData2D GenerateNoise2D(
-            int seed,
-            float scale,
-            int dimensions,
-            Vector2 offset,
-            float lacunarity,
-            float persistence,
-            int octaves,
-            NoiseInterpolateMode interpolateMode,
-            NoiseLocalInterpolateMode localInterpolateMode
-    ) {
-
-        float[,] map = new float[dimensions, dimensions];
-
-        System.Random prng = new System.Random(seed);
-        Vector2[] octaveOffsets = new Vector2[octaves];
-
-        // Random points on the noiseMap are chosen to act as starting points then we add the custom offset.
-        for (int i = 0; i < octaves; i++) {
-            float offsetX = prng.Next(-100000, 100000) + offset.x;
-            float offsetY = prng.Next(-100000, 100000) + offset.y;
-            octaveOffsets[i] = new Vector2(offsetX, offsetY);
-        }
-
-        float maxNoiseHeight = float.MinValue;
-        float minNoiseHeight = float.MaxValue;
-
-        // Loop through all the points in the map
-        for (int y = 0; y < dimensions; y++) {
-            for (int x = 0; x < dimensions; x++) {
-                // Reset the amplitude, frequency and noiseHeight
-                float amplitude = 1;
-                float frequency = 1;
-                float noiseHeight = 0f;
-
-                // For each layer of noise (octave)
-                for (int i = 0; i < octaves; i++) {
-                    // perform f(x) = a*perlin(freq*x + c) solved for f(y) as well.
-                    // sampleX = (freq*x + c)
-                    float sampleX = frequency * (x + octaveOffsets[i].x) / scale;
-                    // sampleY = (freq*y + c)
-                    float sampleY = frequency * (y + octaveOffsets[i].y) / scale;
-                    // a * perlin(sampleX) && a * perlin(sampleY)
-                    // *2 - 1 to include negative values
-                    noiseHeight += amplitude * (Perlin2D(interpolateMode, localInterpolateMode, sampleX, sampleY) * 2 - 1);
-
-                    //Change the amplitude and frequency based on a multiplier
-
-                    //The amplitude will determine how gray a point will become. The higher this number is the more extreme the gray. i.e (x,y) -> 1 more black.
-                    //Persistence will thus determine how regular the greys are.
-                    amplitude *= persistence;
-                    //The frequency adds more points the higher it is. This means more gray, black and white points.
-                    //Lacunarity then further complicates this by incrementing frequency over a smaller area (octave).
-                    frequency *= lacunarity;
-                }
-
-                if (noiseHeight > maxNoiseHeight) {
-                    maxNoiseHeight = noiseHeight;
-                } else if (noiseHeight < minNoiseHeight) {
-                    minNoiseHeight = noiseHeight;
-                }
-                map[x, y] = noiseHeight;
-            }
-        }
-
-        return new NoiseData2D(dimensions, maxNoiseHeight, minNoiseHeight, map);
-    }
-
-    private static float Perlin2D(
+    private static float Simplex(
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode,
             float x, float y
     ) {
-        if (permutationTable is null)
-            GeneratePermutationTable();
-
-        int uCubeX = (int)x & 255;
-        int uCubeY = (int)y & 255;
-
-        float deltaX = x - uCubeX;
-        float deltaY = y - uCubeY;
-
-        //Vector from Unit Cube vertex (x,y,z) to coordinate
-        Vector2 vector00 = new Vector2(deltaX, deltaY);
-        Vector2 vector10 = new Vector2(1 - deltaX, deltaY);
-        Vector2 vector01 = new Vector2(deltaX, 1 - deltaY);
-        Vector2 vector11 = new Vector2(1 - deltaX, 1 - deltaY);
-
-        //randomValue from Unit Cube vertex (x,y,z)
-        int value00 = permutationTable[ChoosePermutationIndex(uCubeX, uCubeY, uCubeX + uCubeY % 255)];
-        int value10 = permutationTable[ChoosePermutationIndex(1 + uCubeX, uCubeY, 1 + uCubeX + uCubeY % 255)];
-        int value01 = permutationTable[ChoosePermutationIndex(uCubeX, 1 + uCubeY, 1 + uCubeX + uCubeY % 255)];
-        int value11 = permutationTable[ChoosePermutationIndex(uCubeX + 1, uCubeY + 1, 2 + uCubeX + uCubeY % 255)];
-
-        //Dot product of vector pointing to grid point and constant vector determined by randomValue
-        float dot00 = Vector3.Dot(vector00, NoiseConstants.constantVectors3D[value00 & 3]);
-        float dot10 = Vector3.Dot(vector10, NoiseConstants.constantVectors3D[value10 & 3]);
-        float dot01 = Vector3.Dot(vector01, NoiseConstants.constantVectors3D[value01 & 3]);
-        float dot11 = Vector3.Dot(vector11, NoiseConstants.constantVectors3D[value11 & 3]);
-
-        float smoothDeltaX = LocalInterpolate(localInterpolateMode, deltaX);
-        float smoothDeltaY = LocalInterpolate(localInterpolateMode, deltaY);
-
-        float interpolatedHorizontalEdg = Interpolate(interpolateMode, dot00, dot10, smoothDeltaX);
-        float interpolatedVerticalEdge = Interpolate(interpolateMode, dot01, dot11, smoothDeltaX);
-
-        return Interpolate(interpolateMode, interpolatedHorizontalEdg, interpolatedVerticalEdge, smoothDeltaY);
+        return 0f;
     }
-    #endregion
 
-    //TODO
     private static float Simplex(
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode,
             float x, float y, float z
-        ) {
+    ) {
         return 0f;
     }
+
+    #region Local Interpolation Methods
+    private static float LocalInterpolate(NoiseLocalInterpolateMode mode, float t) {
+        float output = 0f;
+        switch (mode) {
+            case NoiseLocalInterpolateMode.Fade:
+                output = Fade(t);
+                break;
+            case NoiseLocalInterpolateMode.SmoothStep:
+                output = SmoothStep(t);
+                break;
+        }
+
+        return output;
+    }
+
+    private static float Fade(float t) {
+        return ((6 * t - 15) * t + 10) * t * t * t;
+    }
+
+    private static float SmoothStep(float t) {
+        return t * t * (3.0f - 2.0f * t);
+    }
+    #endregion
+
+    #region Global Interpolation Methods
 
     private static float Interpolate(NoiseInterpolateMode mode, float a, float b, float t) {
         float output = 0f;
@@ -325,28 +385,9 @@ public static class NoiseGenerator {
         return h1 * a + h2 * b;
     }
 
-    private static float LocalInterpolate(NoiseLocalInterpolateMode mode, float t) {
-        float output = 0f;
-        switch (mode) {
-            case NoiseLocalInterpolateMode.Fade:
-                output = Fade(t);
-                break;
-            case NoiseLocalInterpolateMode.SmoothStep:
-                output = SmoothStep(t);
-                break;
-        }
+    #endregion
 
-        return output;
-    }
-
-    private static float Fade(float t) {
-        return ((6 * t - 15) * t + 10) * t * t * t;
-    }
-
-    private static float SmoothStep(float t) {
-        return t * t * (3.0f - 2.0f * t);
-    }
-
+    #region Permutation Table
     private static int ChoosePermutationIndex(int x, int y, int z) {
         return (x + y * z) % 511;
     }
@@ -364,11 +405,51 @@ public static class NoiseGenerator {
 
             int temp = permutationTable[i];
             permutationTable[i] = permutationTable[index];
-            permutationTable[index] = permutationTable[i];
+            permutationTable[index] = temp;
         }
 
         for (int i = 0; i < 256; i++) {
             permutationTable[i + 256] = permutationTable[i];
         }
     }
+    #endregion
+
+    #region MapExport
+    public static async Task ExportMap(NoiseData2D noiseData) {
+        float[,] map = noiseData.map;
+        string outputString = "";
+        for (int y = 0; y < noiseData.dimensions; y++) {
+            for (int x = 0; x < noiseData.dimensions; x++) {
+                outputString += (x == noiseData.dimensions - 1) ? map[x, y] : map[x, y] + ", ";
+            }
+            outputString += "\n";
+        }
+
+        CreateCSV(outputString);
+    }
+    public static async Task ExportMap(NoiseData3D noiseData) {
+        float[,,] map = noiseData.map;
+        string outputString = "";
+
+        for (int y = 0; y < noiseData.dimensions; y++) {
+            outputString += "map[0, + " + y + ", 0]";
+            for (int x = 0; x < noiseData.dimensions; x++) {
+                for (int z = 0; z < noiseData.dimensions; z++) {
+                    outputString += (z == noiseData.dimensions - 1) ? map[x, y, z] : map[x, y, z] + ", ";
+                }
+                outputString += "\n";
+            }
+        }
+
+        await CreateCSV(outputString);
+    }
+
+    private static async Task CreateCSV(string data) {
+        string directory = Path.Combine(Directory.GetCurrentDirectory(), DateTime.Now.ToString(), ".csv");
+        Debug.Log(directory);
+        using (StreamWriter writer = new StreamWriter(directory)) {
+            await writer.WriteAsync(data);
+        }
+    }
+    #endregion
 }

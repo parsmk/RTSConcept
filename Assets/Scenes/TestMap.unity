@@ -341,18 +341,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d10b380c978e7e4d95fc2d0538e0bd4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  drawMode: 1
-  autoUpdate: 1
-  meshRenderer: {fileID: 1525278005}
+  noiseInterpolateMode: 0
+  noiseLocalInterpolateMode: 0
   seed: 1
   scale: 100
-  mapOffset: {x: 0, y: 0}
+  mapOffset: {x: 0, y: 0, z: 0}
   persistence: 0.45
   lacunarity: 2.5
   octaves: 4
-  meshHeightMultiplier: 50
-  color: {r: 1, g: 0, b: 0, a: 0}
-  meshHeightCurve:
+  levelOfDetail: 5
+  threshhold: 0.5
+  animationCurve:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
@@ -365,41 +364,32 @@ MonoBehaviour:
       inWeight: 0
       outWeight: 0
     - serializedVersion: 3
-      time: 0.30448434
-      value: 0.00021975487
-      inSlope: 0.016130866
-      outSlope: 0.016130866
+      time: 0.300076
+      value: 0.0018421612
+      inSlope: 0.03903854
+      outSlope: 0.03903854
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
-      outWeight: 0.064335056
+      outWeight: 0.058849704
     - serializedVersion: 3
-      time: 0.4994972
-      value: 0.09238552
-      inSlope: 0.058505543
-      outSlope: 0.058505543
+      time: 0.3506806
+      value: 0.0035661086
+      inSlope: 0.07919519
+      outSlope: 0.07919519
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
-      outWeight: 0.09588547
+      outWeight: 0.040325392
     - serializedVersion: 3
-      time: 0.5998157
-      value: 0.12676767
-      inSlope: 0.06218546
-      outSlope: 0.06218546
+      time: 0.60219127
+      value: 0.15673293
+      inSlope: 0.6891841
+      outSlope: 0.6891841
       tangentMode: 0
       weightedMode: 0
       inWeight: 0.33333334
-      outWeight: 0.50580823
-    - serializedVersion: 3
-      time: 0.70391995
-      value: 0.19996718
-      inSlope: 0.7752682
-      outSlope: 0.7752682
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0.21807392
-      outWeight: 0.16093554
+      outWeight: 0.14761296
     - serializedVersion: 3
       time: 1
       value: 1
@@ -412,6 +402,9 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  heightModifier: 50
+  drawMode: 1
+  color: {r: 1, g: 0, b: 0, a: 0}
   terrainTypes:
   - name: Water
     heightThreshold: 0.3
@@ -445,7 +438,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mapWrapper: {fileID: 1695554872}
   meshMaterial: {fileID: 2100000, guid: d4ce0c9aa97baba4aa3d38e79b151f3e, type: 2}
-  mapRegionDimensions: 4
+  mapType: 0
+  autoUpdate: 0
+  mapRegionDimensions: 1
 --- !u!4 &1118162104
 Transform:
   m_ObjectHideFlags: 0
