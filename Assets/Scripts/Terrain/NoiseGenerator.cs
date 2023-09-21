@@ -1,4 +1,4 @@
-using System;
+using CsvHelper;
 using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -6,6 +6,7 @@ using UnityEngine;
 public static class NoiseGenerator {
     public enum NoiseInterpolateMode { Hermite, Lerp };
     public enum NoiseLocalInterpolateMode { SmoothStep, Fade };
+    public enum NoiseMode { UnityPerlin, CustomPerlin, Simplex };
 
     public struct NoiseData2D {
         public int dimensions;
@@ -63,6 +64,7 @@ public static class NoiseGenerator {
             float lacunarity,
             float persistence,
             int octaves,
+            NoiseMode noiseMoide,
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode
     ) {
@@ -99,7 +101,7 @@ public static class NoiseGenerator {
                     float sampleY = frequency * (y + octaveOffsets[i].y) / scale;
                     // a * perlin(sampleX) && a * perlin(sampleY)
                     // *2 - 1 to include negative values
-                    noiseHeight += amplitude * (Perlin(interpolateMode, localInterpolateMode, sampleX, sampleY) * 2 - 1);
+                    noiseHeight += amplitude * (Noise(noiseMoide, interpolateMode, localInterpolateMode, sampleX, sampleY) * 2 - 1);
 
                     //Change the amplitude and frequency based on a multiplier
 
@@ -131,6 +133,7 @@ public static class NoiseGenerator {
         float lacunarity,
         float persistence,
         int octaves,
+        NoiseMode noiseMode,
         NoiseInterpolateMode interpolateMode,
         NoiseLocalInterpolateMode localInterpolateMode
     ) {
@@ -171,7 +174,7 @@ public static class NoiseGenerator {
                         float sampleZ = frequency * (z + octaveOffsets[i].z) / scale;
                         // a * perlin(sampleX) && a * perlin(sampleY)
                         // *2 - 1 to include negative values
-                        noiseHeight += amplitude * (Perlin(interpolateMode, localInterpolateMode, sampleX, sampleY, sampleZ) * 2 - 1);
+                        noiseHeight += amplitude * (Noise(noiseMode, interpolateMode, localInterpolateMode, sampleX, sampleY, sampleZ) * 2 - 1);
 
                         //Change the amplitude and frequency based on a multiplier
 
@@ -218,6 +221,39 @@ public static class NoiseGenerator {
         }
 
         return new NoiseData3D(noiseData.dimensions, inputMax, inputMin, normalizedMap);
+    }
+
+    private static float Noise(
+            NoiseMode noiseMode,
+            NoiseInterpolateMode interpolateMode,
+            NoiseLocalInterpolateMode localInterpolateMode,
+            float x, float y, float ? z = null
+    ) {
+        float output = 0f;
+
+        if (z is null) {
+            switch (noiseMode) {
+                case NoiseMode.UnityPerlin:
+                    return Mathf.PerlinNoise(x, y);
+                case NoiseMode.CustomPerlin:
+                    return Perlin(interpolateMode, localInterpolateMode, x, y);
+                case NoiseMode.Simplex:
+                    return Simplex(interpolateMode, localInterpolateMode, x, y);
+            }
+
+            return output;
+        } else {
+            switch (noiseMode) {
+                case NoiseMode.UnityPerlin:
+                    return Mathf.PerlinNoise(x, y);
+                case NoiseMode.CustomPerlin:
+                    return Perlin(interpolateMode, localInterpolateMode, x, y, (float)z);
+                case NoiseMode.Simplex:
+                    return Simplex(interpolateMode, localInterpolateMode, x, y, (float)z);
+            }
+        }
+
+        return output;
     }
 
     private static float Perlin(
@@ -400,7 +436,7 @@ public static class NoiseGenerator {
             permutationTable[i] = i;
         }
 
-        for (int i = 255; i > 0; i--) {
+        for (int i = 256; i > 0; i--) {
             int index = UnityEngine.Random.Range(0, i);
 
             int temp = permutationTable[i];
@@ -415,41 +451,58 @@ public static class NoiseGenerator {
     #endregion
 
     #region MapExport
-    public static async Task ExportMap(NoiseData2D noiseData) {
+    public static async Task ExportMap(string fileName, NoiseData2D noiseData) {
         float[,] map = noiseData.map;
-        string outputString = "";
-        for (int y = 0; y < noiseData.dimensions; y++) {
+
+        string directory = Path.Combine(Directory.GetCurrentDirectory(), "CSVs", fileName + ".csv");
+
+        if (!Directory.Exists(directory))
+            Debug.Log("Creating CSV for: " + directory);
+        else
+            Debug.Log("Updating CSV for: " + directory);
+
+        using (StreamWriter writer = new StreamWriter(directory)) 
+        using (CsvWriter csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture)) {
             for (int x = 0; x < noiseData.dimensions; x++) {
-                outputString += (x == noiseData.dimensions - 1) ? map[x, y] : map[x, y] + ", ";
+                csv.WriteField(x);
             }
-            outputString += "\n";
-        }
+            await csv.NextRecordAsync();
 
-        CreateCSV(outputString);
-    }
-    public static async Task ExportMap(NoiseData3D noiseData) {
-        float[,,] map = noiseData.map;
-        string outputString = "";
-
-        for (int y = 0; y < noiseData.dimensions; y++) {
-            outputString += "map[0, + " + y + ", 0]";
-            for (int x = 0; x < noiseData.dimensions; x++) {
-                for (int z = 0; z < noiseData.dimensions; z++) {
-                    outputString += (z == noiseData.dimensions - 1) ? map[x, y, z] : map[x, y, z] + ", ";
+            for (int y = 0; y < noiseData.dimensions; y++) {
+                for (int x = 0; x < noiseData.dimensions; x++) {
+                    csv.WriteField($"{map[x, y]}");
                 }
-                outputString += "\n";
+                await csv.NextRecordAsync();
             }
+
         }
 
-        await CreateCSV(outputString);
+        Debug.Log("Done CSV for: " + directory);
     }
 
-    private static async Task CreateCSV(string data) {
-        string directory = Path.Combine(Directory.GetCurrentDirectory(), DateTime.Now.ToString(), ".csv");
-        Debug.Log(directory);
-        using (StreamWriter writer = new StreamWriter(directory)) {
-            await writer.WriteAsync(data);
+    public static async Task ExportMap(string fileName, NoiseData3D noiseData) {
+        float[,,] map = noiseData.map;
+
+        string directory = Path.Combine(Directory.GetCurrentDirectory(), "CSVs", fileName + ".csv");
+
+        if (!Directory.Exists(directory))
+            Debug.Log("Creating CSV for: " + directory);
+        else
+            Debug.Log("Updating CSV for: " + directory);
+
+        using (StreamWriter writer = new StreamWriter(directory))
+        using (CsvWriter csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture)) {
+
+            for (int y = 0; y < noiseData.dimensions; y++) {
+                for (int x = 0; x < noiseData.dimensions; x++) {
+                    csv.WriteField($"{map[x, y, UnityEngine.Random.Range(0, noiseData.dimensions - 1)]}");
+                }
+                await csv.NextRecordAsync();
+            }
+
         }
+
+        Debug.Log("Done CSV for: " + directory);
     }
     #endregion
 }

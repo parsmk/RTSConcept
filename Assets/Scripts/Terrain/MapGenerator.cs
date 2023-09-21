@@ -5,6 +5,7 @@ public class MapGenerator : MonoBehaviour {
 
     #region NoiseSettings
     [Header("Noise")]
+    public NoiseGenerator.NoiseMode noiseMode;
     public NoiseGenerator.NoiseInterpolateMode noiseInterpolateMode;
     public NoiseGenerator.NoiseLocalInterpolateMode noiseLocalInterpolateMode;
 
@@ -53,6 +54,7 @@ public class MapGenerator : MonoBehaviour {
                                 lacunarity,
                                 persistence,
                                 octaves,
+                                noiseMode,
                                 noiseInterpolateMode,
                                 noiseLocalInterpolateMode
                             );
@@ -72,6 +74,7 @@ public class MapGenerator : MonoBehaviour {
                                 lacunarity,
                                 persistence,
                                 octaves,
+                                noiseMode,
                                 noiseInterpolateMode,
                                 noiseLocalInterpolateMode
                             );
@@ -310,7 +313,7 @@ public class MapGenerator : MonoBehaviour {
     void OnValidate() {
         // NoiseSettings
         if (lacunarity < 1) { lacunarity = 1; }
-        if (octaves < 0) { octaves = 0; }
+        if (octaves < 1) { octaves = 1; }
 
         // MeshSettings
         if (levelOfDetail < 5) { levelOfDetail = 5; }
