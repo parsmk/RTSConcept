@@ -41,7 +41,7 @@ public class MapBuilder : MonoBehaviour {
             MapData2D normalizedData = mapGen.NormalizeMap((MapData2D)regions[key].mapData, minMapHeight, maxMapHeight);
             regions[key].UpdateRegion(normalizedData);
 
-            Task.Run(() => NoiseGenerator.ExportMap(key.ToString(), normalizedData.noiseData));
+            Task.Run(() => Export.Export2DArray(key.ToString(), normalizedData.noiseData.map, dimensions));
         }
     }
 

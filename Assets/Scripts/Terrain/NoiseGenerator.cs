@@ -1,6 +1,3 @@
-using CsvHelper;
-using System.IO;
-using System.Threading.Tasks;
 using UnityEngine;
 
 public static class NoiseGenerator {
@@ -269,11 +266,17 @@ public static class NoiseGenerator {
         if (permutationTable is null)
             GeneratePermutationTable();
 
+
         int uCubeX = (int)x & 255;
         int uCubeY = (int)y & 255;
 
         float deltaX = x - Mathf.Floor(x);
         float deltaY = y - Mathf.Floor(y);
+        if ((20(x) - 13))
+        if (deltaX == 0)
+            Debug.Log("deltaX == 0");
+        if (deltaY == 0)
+            Debug.Log("deltaY == 0");
 
 
         //if (deltaX == 0) {
@@ -472,62 +475,6 @@ public static class NoiseGenerator {
         for (int i = 0; i < 256; i++) {
             permutationTable[i + 256] = permutationTable[i];
         }
-    }
-    #endregion
-
-    #region MapExport
-    public static async Task ExportMap(string fileName, NoiseData2D noiseData) {
-        float[,] map = noiseData.map;
-
-        string directory = Path.Combine(Directory.GetCurrentDirectory(), "CSVs", fileName + ".csv");
-
-        if (!Directory.Exists(directory))
-            Debug.Log("Creating CSV for: " + directory);
-        else
-            Debug.Log("Updating CSV for: " + directory);
-
-        using (StreamWriter writer = new StreamWriter(directory)) 
-        using (CsvWriter csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture)) {
-            for (int x = 0; x < noiseData.dimensions; x++) {
-                csv.WriteField(x);
-            }
-            await csv.NextRecordAsync();
-
-            for (int y = 0; y < noiseData.dimensions; y++) {
-                for (int x = 0; x < noiseData.dimensions; x++) {
-                    csv.WriteField($"{map[x, y]}");
-                }
-                await csv.NextRecordAsync();
-            }
-
-        }
-
-        Debug.Log("Done CSV for: " + directory);
-    }
-
-    public static async Task ExportMap(string fileName, NoiseData3D noiseData) {
-        float[,,] map = noiseData.map;
-
-        string directory = Path.Combine(Directory.GetCurrentDirectory(), "CSVs", fileName + ".csv");
-
-        if (!Directory.Exists(directory))
-            Debug.Log("Creating CSV for: " + directory);
-        else
-            Debug.Log("Updating CSV for: " + directory);
-
-        using (StreamWriter writer = new StreamWriter(directory))
-        using (CsvWriter csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture)) {
-
-            for (int y = 0; y < noiseData.dimensions; y++) {
-                for (int x = 0; x < noiseData.dimensions; x++) {
-                    csv.WriteField($"{map[x, y, UnityEngine.Random.Range(0, noiseData.dimensions - 1)]}");
-                }
-                await csv.NextRecordAsync();
-            }
-
-        }
-
-        Debug.Log("Done CSV for: " + directory);
     }
     #endregion
 }
