@@ -99,6 +99,11 @@ public static class NoiseGenerator {
                     float sampleX = frequency * (x + octaveOffsets[i].x) / scale;
                     // sampleY = (freq*y + c)
                     float sampleY = frequency * (y + octaveOffsets[i].y) / scale;
+
+
+                    if (x == 2) {
+                        Debug.Log("SampleX: " + sampleX + "; SampleY: " + sampleY);
+                    }
                     // a * perlin(sampleX) && a * perlin(sampleY)
                     // *2 - 1 to include negative values
                     noiseHeight += amplitude * (Noise(noiseMoide, interpolateMode, localInterpolateMode, sampleX, sampleY) * 2 - 1);
@@ -270,6 +275,14 @@ public static class NoiseGenerator {
         float deltaX = x - Mathf.Floor(x);
         float deltaY = y - Mathf.Floor(y);
 
+
+        //if (deltaX == 0) {
+        //    Debug.Log("DeltaX is 0 for: (" + x + ", " + y + ")");
+        //}
+        //if (deltaY == 0) {
+        //    Debug.Log("DeltaY is 0 for: (" + x + ", " + y + ")");
+        //}
+
         //Vector from Unit Cube vertex (x,y) to coordinate
         Vector2 vector00 = new Vector2(deltaX, deltaY);
         Vector2 vector10 = new Vector2(deltaX - 1, deltaY);
@@ -283,10 +296,22 @@ public static class NoiseGenerator {
         int value11 = permutationTable[ChoosePermutationIndex(uCubeX + 1, uCubeY + 1, 2 + uCubeX + uCubeY % 255)];
 
         //Dot product of vector pointing to grid point and constant vector determined by randomValue
-        float dot00 = Vector3.Dot(vector00, NoiseConstants.constantVectors3D[value00 & 3]);
-        float dot10 = Vector3.Dot(vector10, NoiseConstants.constantVectors3D[value10 & 3]);
-        float dot01 = Vector3.Dot(vector01, NoiseConstants.constantVectors3D[value01 & 3]);
-        float dot11 = Vector3.Dot(vector11, NoiseConstants.constantVectors3D[value11 & 3]);
+        #region temp
+        int constantIndex00 = value00 & 3;
+        int constantIndex01 = value01 & 3;
+        int constantIndex10 = value10 & 3;
+        int constantIndex11 = value11 & 3;
+
+        Vector2 constantVector00 = NoiseConstants.constantVectors2D[constantIndex00];
+        Vector2 constantVector01 = NoiseConstants.constantVectors2D[constantIndex01];
+        Vector2 constantVector10 = NoiseConstants.constantVectors2D[constantIndex10];
+        Vector2 constantVector11 = NoiseConstants.constantVectors2D[constantIndex11];
+        #endregion
+
+        float dot00 = Vector2.Dot(vector00, constantVector00);
+        float dot10 = Vector2.Dot(vector10, constantVector10);
+        float dot01 = Vector2.Dot(vector01, constantVector01);
+        float dot11 = Vector2.Dot(vector11, constantVector11);
 
         float smoothDeltaX = LocalInterpolate(localInterpolateMode, deltaX);
         float smoothDeltaY = LocalInterpolate(localInterpolateMode, deltaY);
