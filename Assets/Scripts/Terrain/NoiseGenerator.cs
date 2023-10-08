@@ -266,25 +266,11 @@ public static class NoiseGenerator {
         if (permutationTable is null)
             GeneratePermutationTable();
 
-
-        int uCubeX = (int)x & 255;
-        int uCubeY = (int)y & 255;
+        int uCubeX = (int)Mathf.Floor(x) & 255;
+        int uCubeY = (int)Mathf.Floor(y) & 255;
 
         float deltaX = x - Mathf.Floor(x);
         float deltaY = y - Mathf.Floor(y);
-        if ((20(x) - 13))
-        if (deltaX == 0)
-            Debug.Log("deltaX == 0");
-        if (deltaY == 0)
-            Debug.Log("deltaY == 0");
-
-
-        //if (deltaX == 0) {
-        //    Debug.Log("DeltaX is 0 for: (" + x + ", " + y + ")");
-        //}
-        //if (deltaY == 0) {
-        //    Debug.Log("DeltaY is 0 for: (" + x + ", " + y + ")");
-        //}
 
         //Vector from Unit Cube vertex (x,y) to coordinate
         Vector2 vector00 = new Vector2(deltaX, deltaY);
@@ -299,22 +285,10 @@ public static class NoiseGenerator {
         int value11 = permutationTable[ChoosePermutationIndex(uCubeX + 1, uCubeY + 1, 2 + uCubeX + uCubeY % 255)];
 
         //Dot product of vector pointing to grid point and constant vector determined by randomValue
-        #region temp
-        int constantIndex00 = value00 & 3;
-        int constantIndex01 = value01 & 3;
-        int constantIndex10 = value10 & 3;
-        int constantIndex11 = value11 & 3;
-
-        Vector2 constantVector00 = NoiseConstants.constantVectors2D[constantIndex00];
-        Vector2 constantVector01 = NoiseConstants.constantVectors2D[constantIndex01];
-        Vector2 constantVector10 = NoiseConstants.constantVectors2D[constantIndex10];
-        Vector2 constantVector11 = NoiseConstants.constantVectors2D[constantIndex11];
-        #endregion
-
-        float dot00 = Vector2.Dot(vector00, constantVector00);
-        float dot10 = Vector2.Dot(vector10, constantVector10);
-        float dot01 = Vector2.Dot(vector01, constantVector01);
-        float dot11 = Vector2.Dot(vector11, constantVector11);
+        float dot00 = Vector2.Dot(vector00, NoiseConstants.constantVectors[value00 & 3]);
+        float dot10 = Vector2.Dot(vector10, NoiseConstants.constantVectors[value10 & 3]);
+        float dot01 = Vector2.Dot(vector01, NoiseConstants.constantVectors[value01 & 3]);
+        float dot11 = Vector2.Dot(vector11, NoiseConstants.constantVectors[value11 & 3]);
 
         float smoothDeltaX = LocalInterpolate(localInterpolateMode, deltaX);
         float smoothDeltaY = LocalInterpolate(localInterpolateMode, deltaY);
@@ -333,9 +307,9 @@ public static class NoiseGenerator {
         if (permutationTable is null)
             GeneratePermutationTable();
 
-        int uCubeX = (int)x & 255;
-        int uCubeY = (int)y & 255;
-        int uCubeZ = (int)z & 255;
+        int uCubeX = (int)Mathf.Floor(x) & 255;
+        int uCubeY = (int)Mathf.Floor(y) & 255;
+        int uCubeZ = (int)Mathf.Floor(z) & 255;
 
         float deltaX = x - uCubeX;
         float deltaY = y - uCubeY;
@@ -362,14 +336,14 @@ public static class NoiseGenerator {
         int value111 = permutationTable[ChoosePermutationIndex(uCubeX + 1, uCubeY + 1, uCubeZ + 1)];
 
         //Dot product of vector pointing to grid point and constant vector determined by randomValue
-        float dot000 = Vector3.Dot(vector000, NoiseConstants.constantVectors3D[(value000 & 15) % 12 - 1]);
-        float dot100 = Vector3.Dot(vector100, NoiseConstants.constantVectors3D[(value100 & 15) % 12 - 1]);
-        float dot010 = Vector3.Dot(vector010, NoiseConstants.constantVectors3D[(value010 & 15) % 12 - 1]);
-        float dot110 = Vector3.Dot(vector110, NoiseConstants.constantVectors3D[(value110 & 15) % 12 - 1]);
-        float dot001 = Vector3.Dot(vector001, NoiseConstants.constantVectors3D[(value001 & 15) % 12 - 1]);
-        float dot101 = Vector3.Dot(vector101, NoiseConstants.constantVectors3D[(value101 & 15) % 12 - 1]);
-        float dot011 = Vector3.Dot(vector011, NoiseConstants.constantVectors3D[(value011 & 15) % 12 - 1]);
-        float dot111 = Vector3.Dot(vector111, NoiseConstants.constantVectors3D[(value111 & 15) % 12 - 1]);
+        float dot000 = Vector3.Dot(vector000, NoiseConstants.constantVectors[(value000 & 15) % 12 - 1]);
+        float dot100 = Vector3.Dot(vector100, NoiseConstants.constantVectors[(value100 & 15) % 12 - 1]);
+        float dot010 = Vector3.Dot(vector010, NoiseConstants.constantVectors[(value010 & 15) % 12 - 1]);
+        float dot110 = Vector3.Dot(vector110, NoiseConstants.constantVectors[(value110 & 15) % 12 - 1]);
+        float dot001 = Vector3.Dot(vector001, NoiseConstants.constantVectors[(value001 & 15) % 12 - 1]);
+        float dot101 = Vector3.Dot(vector101, NoiseConstants.constantVectors[(value101 & 15) % 12 - 1]);
+        float dot011 = Vector3.Dot(vector011, NoiseConstants.constantVectors[(value011 & 15) % 12 - 1]);
+        float dot111 = Vector3.Dot(vector111, NoiseConstants.constantVectors[(value111 & 15) % 12 - 1]);
 
         float smoothDeltaX = LocalInterpolate(localInterpolateMode, deltaX);
         float smoothDeltaY = LocalInterpolate(localInterpolateMode, deltaY);

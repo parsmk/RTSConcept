@@ -40,8 +40,6 @@ public class MapBuilder : MonoBehaviour {
         foreach (Vector2 key in regions.Keys) {
             MapData2D normalizedData = mapGen.NormalizeMap((MapData2D)regions[key].mapData, minMapHeight, maxMapHeight);
             regions[key].UpdateRegion(normalizedData);
-
-            Task.Run(() => Export.Export2DArray(key.ToString(), normalizedData.noiseData.map, dimensions));
         }
     }
 

@@ -178,7 +178,6 @@ public class MapGenerator : MonoBehaviour {
     public static MeshData GenerateMeshData(int dimensions, float[,] map, float heightModifier, AnimationCurve animationCurve) {
         MeshData meshData = new MeshData(dimensions, dimensions);
 
-        //for int y
         for (int y = 0, vertexIndex = 0; y < dimensions; y++) {
             for (int x = 0; x < dimensions; x++, vertexIndex++) {
                 meshData.vertexArray[vertexIndex] = new Vector3(x, animationCurve.Evaluate(map[x, y]) * heightModifier, y);
@@ -193,44 +192,60 @@ public class MapGenerator : MonoBehaviour {
 
         return meshData;
     }
+    
     public MeshData MarchCubes(int dimensions, float[,,] map) {
+        MeshData meshData = new MeshData(dimensions, dimensions);
 
         int edgeSize = dimensions / levelOfDetail;
-        float[] cubeVertices = new float[8];
-        int cubeIndex = 0;
+        (Vector3 cord, float value)[] cubeVertices = new (Vector3 cord, float value)[8];
 
         for (int x = 0; x < dimensions; x += edgeSize) {
             for (int y = 0; y < dimensions; y += edgeSize) {
                 for (int z = 0; z < dimensions; z += edgeSize) {
-                    cubeVertices[0] = map[x, y, z];
-                    cubeVertices[1] = map[x + 1, y, z];
-                    cubeVertices[2] = map[x, y + 1, z];
-                    cubeVertices[3] = map[x, y, z + 1];
-                    cubeVertices[4] = map[x + 1, y, z + 1];
-                    cubeVertices[5] = map[x + 1, y + 1, z];
-                    cubeVertices[6] = map[x, y + 1, z + 1];
-                    cubeVertices[7] = map[x + 1, y + 1, z + 1];
+                    int cubeIndex = 0;
+
+                    cubeVertices[0] = (new Vector3(x, y, z), map[x, y, z]);
+                    cubeVertices[1] = (new Vector3(x + 1, y, z), map[x, y, z]);
+                    cubeVertices[2] = (new Vector3(x, y + 1, z), map[x, y + 1, z]);
+                    cubeVertices[3] = (new Vector3(x, y, z + 1),  map[x, y, z + 1]);
+                    cubeVertices[4] = (new Vector3(x + 1, y, z + 1), map[x + 1, y, z + 1]);
+                    cubeVertices[5] = (new Vector3(x + 1, y + 1, z), map[x + 1, y + 1, z]);
+                    cubeVertices[6] = (new Vector3(x, y + 1, z + 1), map[x, y + 1, z + 1]);
+                    cubeVertices[7] = (new Vector3(x + 1, y + 1, z + 1), map[x + 1, y + 1, z + 1]);
 
                     for (int i = 0; i < cubeVertices.Length; i++) {
-                        if (cubeVertices[i] < threshhold) {
-                            cubeIndex = 1 << i;
+                        if (cubeVertices[i].value < threshhold) {
+                            cubeIndex |= 1 << i;
                         }
                     }
 
-                    int[] edges = MarchingCubesConstants.triangulationTable[cubeIndex];
-                    int[] triangleVertices = new int[edges.Length];
+                    int edgesIntersected = MarchingCubesConstants.edgeTable[cubeIndex];
+                    if (edgesIntersected == 0)
+                        continue;
 
-                    for (int i = 0, edgeIntersect = 0; i < edges.Length; i++) {
-                        edgeIntersect = 1 << i;
-                        if ((MarchingCubesConstants.edgeTable[i] & edgeIntersect) == edgeIntersect) {
-                            //triangleVertices[i] = Interpolate(threshhold, , map[x,y,z], )
+                    for (int edge = 1, i = 0; edge <= 0xffc; edge <<= 1, i++) {
+                        if ((edgesIntersected & edge) != 0) {
+                            float valueVertA = cubeVertices[MarchingCubesConstants.edgeIndices[edge].a].value;
+                            float valueVertB = cubeVertices[MarchingCubesConstants.edgeIndices[edge].b].value;
+
+                            Vector3 cordVertA = cubeVertices[MarchingCubesConstants.edgeIndices[edge].a].cord;
+                            Vector3 cordVertB = cubeVertices[MarchingCubesConstants.edgeIndices[edge].b].cord;
+
+                            float factor = (threshhold - valueVertA) / (valueVertB - valueVertA);
+
+                            float outputX = cordVertA.x + factor * (cordVertB.x - cordVertA.x);
+                            float outputY = cordVertA.y + factor * (cordVertB.y - cordVertA.y);
+                            float outputZ = cordVertA.z + factor * (cordVertB.z - cordVertA.z);
+
+
                         }
                     }
+
                 }
             }
         }
 
-        return new MeshData();
+        return meshData;
     }
     #endregion
 

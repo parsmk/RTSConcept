@@ -1,19 +1,15 @@
 ﻿using UnityEngine;
 
 public static class NoiseConstants {
-    public static Vector3[] constantVectors3D = {
+    public readonly static Vector3[] constantVectors = {
         new Vector3(1, 1, 0), new Vector3(-1, 1, 0), new Vector3(1, -1, 0), new Vector3(-1, -1, 0),
         new Vector3(1, 0, 1), new Vector3(-1, 0, 1), new Vector3(1, 0, -1), new Vector3(-1, 0, -1),
         new Vector3(0, 1, 1), new Vector3(0, -1, 1), new Vector3(0, 1, -1), new Vector3(0, -1, -1)
     };
-
-    public static Vector2[] constantVectors2D = {
-        new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 0), new Vector2(1,1)
-    };
 }
 
 public static class MarchingCubesConstants {
-    public static int[][] triangulationTable = {
+    public readonly static int[][] triangulationTable = {
         new int[] {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 },
         new int[] {0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         new int[] {0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -271,7 +267,7 @@ public static class MarchingCubesConstants {
         new int[] {0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         new int[] {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
 
-    public static int[] edgeTable = new int[] {
+    public readonly static int[] edgeTable = new int[] {
         0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
         0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
         0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
@@ -304,4 +300,10 @@ public static class MarchingCubesConstants {
         0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99 , 0x190,
         0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
         0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0   };
+
+    public readonly static (int a, int b)[] edgeIndices = new (int a, int b)[] {
+        (0, 1), (1, 2), (2, 3), (3, 0),  // Edges on the bottom face
+        (4, 5), (5, 6), (6, 7), (7, 4),  // Edges on the top face
+        (0, 4), (1, 5), (2, 6), (3, 7)   // Vertical edges connecting top and bottom faces
+    };
 }

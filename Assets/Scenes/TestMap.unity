@@ -345,11 +345,11 @@ MonoBehaviour:
   noiseInterpolateMode: 0
   noiseLocalInterpolateMode: 0
   seed: 10
-  scale: 20
+  scale: 110
   mapOffset: {x: 0, y: 0, z: 0}
-  persistence: 1
-  lacunarity: 1
-  octaves: 1
+  persistence: 0.25
+  lacunarity: 4
+  octaves: 3
   levelOfDetail: 5
   threshhold: 0.5
   animationCurve:
@@ -403,8 +403,8 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  heightModifier: 0
-  drawMode: 0
+  heightModifier: 75
+  drawMode: 1
   color: {r: 1, g: 1, b: 1, a: 0}
   terrainTypes:
   - name: Water
@@ -441,7 +441,7 @@ MonoBehaviour:
   meshMaterial: {fileID: 2100000, guid: d4ce0c9aa97baba4aa3d38e79b151f3e, type: 2}
   mapType: 0
   autoUpdate: 0
-  mapRegionDimensions: 1
+  mapRegionDimensions: 2
 --- !u!4 &1118162104
 Transform:
   m_ObjectHideFlags: 0
