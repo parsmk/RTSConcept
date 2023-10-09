@@ -266,9 +266,11 @@ public static class NoiseGenerator {
         if (permutationTable is null)
             GeneratePermutationTable();
 
+        //Find x and y of unit cube it is a part of
         int uCubeX = (int)Mathf.Floor(x) & 255;
         int uCubeY = (int)Mathf.Floor(y) & 255;
 
+        //Calculate deltaX
         float deltaX = x - Mathf.Floor(x);
         float deltaY = y - Mathf.Floor(y);
 
@@ -290,6 +292,7 @@ public static class NoiseGenerator {
         float dot01 = Vector2.Dot(vector01, NoiseConstants.constantVectors[value01 & 3]);
         float dot11 = Vector2.Dot(vector11, NoiseConstants.constantVectors[value11 & 3]);
 
+        //Normalize results
         float smoothDeltaX = LocalInterpolate(localInterpolateMode, deltaX);
         float smoothDeltaY = LocalInterpolate(localInterpolateMode, deltaY);
 
