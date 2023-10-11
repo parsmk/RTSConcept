@@ -13,6 +13,7 @@ public class MapBuilder : MonoBehaviour {
     public bool autoUpdate = false;
 
     public int mapRegionDimensions = 2;
+    public int mapRegionDepth = 2;
     public static int regionSize = MapGenerator.dimensions - 1;
 
     private Dictionary<Vector2, Region> regions = new Dictionary<Vector2, Region>();

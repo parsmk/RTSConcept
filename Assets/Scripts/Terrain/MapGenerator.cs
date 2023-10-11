@@ -184,8 +184,8 @@ public class MapGenerator : MonoBehaviour {
                 meshData.uvRays[vertexIndex] = new Vector2(x / (float)dimensions, y / (float)dimensions);
 
                 if (x < dimensions - 1 && y < dimensions - 1) {
-                    meshData.AddTriangle(vertexIndex, vertexIndex + 1, vertexIndex + dimensions);
-                    meshData.AddTriangle(vertexIndex + 1, vertexIndex + dimensions + 1, vertexIndex + dimensions);
+                    meshData.AddTriangle(vertexIndex + dimensions, vertexIndex + 1, vertexIndex);
+                    meshData.AddTriangle(vertexIndex + dimensions, vertexIndex + dimensions + 1, vertexIndex + 1);
                 }
             }
         }
@@ -194,13 +194,13 @@ public class MapGenerator : MonoBehaviour {
     }
     
     public MeshData MarchCubes(int dimensions, float[,,] map) {
-        MeshData meshData = new MeshData(dimensions, dimensions);
-        Vector3[] outputVertices = new Vector3[12];
+        MeshData meshData = new MeshData(dimensions, dimensions, dimensions);
+        Vector3[] outputVertices = new Vector3[dimensions * dimensions * dimensions];
+        int[] triangleArray = new int[dimensions * dimensions * dimensions];
+        int vertIndex = 0, triIndex = 0;
 
         int edgeSize = dimensions / levelOfDetail;
         (Vector3 cord, float value)[] cubeVertices = new (Vector3 cord, float value)[8];
-
-        int vertIndex = 0;
 
         for (int x = 0; x < dimensions; x += edgeSize) {
             for (int y = 0; y < dimensions; y += edgeSize) {
@@ -223,11 +223,12 @@ public class MapGenerator : MonoBehaviour {
                     }
 
                     int edgesIntersected = MarchingCubesConstants.edgeTable[cubeIndex];
+                    Vector3[] newVertices = new Vector3[12];
 
                     if (edgesIntersected == 0)
                         continue;
 
-                    for (int edge = 1; edge <= 0xffc; edge <<= 1) {
+                    for (int edge = 1, i = 0; edge <= 0xffc; edge <<= 1, i++) {
                         if ((edgesIntersected & edge) != 0) {
                             float valueVertA = cubeVertices[MarchingCubesConstants.edgeIndices[edge].a].value;
                             float valueVertB = cubeVertices[MarchingCubesConstants.edgeIndices[edge].b].value;
@@ -241,18 +242,19 @@ public class MapGenerator : MonoBehaviour {
                             float outputY = cordVertA.y + factor * (cordVertB.y - cordVertA.y);
                             float outputZ = cordVertA.z + factor * (cordVertB.z - cordVertA.z);
 
-                            outputVertices[vertIndex] = new Vector3(outputX, outputY, outputZ); vertIndex++;
+                            newVertices[i] = new Vector3(outputX, outputY, outputZ);
                         }
                     }
 
-                    //TODO: Figure out how to populate MeshData
 
-                    for (int i = 0; MarchingCubesConstants.triangulationTable[cubeIndex][i] != -1; i += 3) {
-                        int a = MarchingCubesConstants.triangulationTable[cubeIndex][i];
-                        int b = MarchingCubesConstants.triangulationTable[cubeIndex][i + 1];
-                        int c = MarchingCubesConstants.triangulationTable[cubeIndex][i + 2];
+                    for (int i = 0; MarchingCubesConstants.triangulationTable[cubeIndex][i] != -1; i += 3) {                        
+                        triangleArray[triIndex] = (x * dimensions) + (y * dimensions) + z + i; triIndex++;
+                        triangleArray[triIndex] = (x * dimensions) + (y * dimensions) + z + i + z + i + 1; triIndex++;
+                        triangleArray[triIndex] = (x * dimensions) + (y * dimensions) + z + i + z + i + 2; triIndex++;
 
-                        meshData.AddTriangle(a, b, c);
+                        outputVertices[vertIndex] = newVertices[i]; vertIndex++;
+                        outputVertices[vertIndex] = newVertices[i + 1]; vertIndex++;
+                        outputVertices[vertIndex] = newVertices[i + 2]; vertIndex++;
                     }
 
                 }
@@ -316,6 +318,12 @@ public class MapGenerator : MonoBehaviour {
             vertexArray = new Vector3[meshWidth * meshHeight];
             uvRays = new Vector2[meshWidth * meshHeight];
             triangleArray = new int[(meshWidth - 1) * (meshHeight - 1) * 6];
+            triangleIndex = 0;
+        }
+        public MeshData(int meshWidth, int meshHeight, int meshDepth) {
+            vertexArray = new Vector3[meshWidth * meshHeight * meshDepth];
+            uvRays = new Vector2[meshWidth * meshHeight * meshDepth];
+            triangleArray = new int[(meshWidth - 1) * (meshHeight - 1) * (meshDepth - 1) * 6];
             triangleIndex = 0;
         }
 
