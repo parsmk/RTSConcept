@@ -194,13 +194,13 @@ public class MapGenerator : MonoBehaviour {
     }
     
     public MeshData MarchCubes(int dimensions, float[,,] map) {
-        MeshData meshData = new MeshData(dimensions, dimensions);
-        Vector3[] outputVertices = new Vector3[12];
+        MeshData meshData = new MeshData(dimensions, dimensions, dimensions);
+        Vector3[] vertexArray = new Vector3[dimensions * dimensions * dimensions];
+        int[] triangleArray = new int[dimensions * dimensions * dimensions];
+        int vertIndex = 0, triIndex = 0;
 
         int edgeSize = dimensions / levelOfDetail;
         (Vector3 cord, float value)[] cubeVertices = new (Vector3 cord, float value)[8];
-
-        int vertIndex = 0;
 
         for (int x = 0; x < dimensions; x += edgeSize) {
             for (int y = 0; y < dimensions; y += edgeSize) {
@@ -223,7 +223,7 @@ public class MapGenerator : MonoBehaviour {
                     }
 
                     int edgesIntersected = MarchingCubesConstants.edgeTable[cubeIndex];
-
+                        
                     if (edgesIntersected == 0)
                         continue;
 
@@ -241,18 +241,21 @@ public class MapGenerator : MonoBehaviour {
                             float outputY = cordVertA.y + factor * (cordVertB.y - cordVertA.y);
                             float outputZ = cordVertA.z + factor * (cordVertB.z - cordVertA.z);
 
-                            outputVertices[vertIndex] = new Vector3(outputX, outputY, outputZ); vertIndex++;
+                            //TODO: Populate MeshData.VertexArray
+                            vertexArray[vertIndex] = new Vector3(outputX, outputY, outputZ); vertIndex++;
                         }
                     }
 
-                    //TODO: Figure out how to populate MeshData
 
                     for (int i = 0; MarchingCubesConstants.triangulationTable[cubeIndex][i] != -1; i += 3) {
                         int a = MarchingCubesConstants.triangulationTable[cubeIndex][i];
                         int b = MarchingCubesConstants.triangulationTable[cubeIndex][i + 1];
                         int c = MarchingCubesConstants.triangulationTable[cubeIndex][i + 2];
 
-                        meshData.AddTriangle(a, b, c);
+                        //TODO: Populate MeshData.TriangleArray
+                        triangleArray[triIndex] = triIndex + a; triIndex++;
+                        triangleArray[triIndex] = triIndex + b; triIndex++;
+                        triangleArray[triIndex] = triIndex + c; triIndex++;
                     }
 
                 }
@@ -316,6 +319,12 @@ public class MapGenerator : MonoBehaviour {
             vertexArray = new Vector3[meshWidth * meshHeight];
             uvRays = new Vector2[meshWidth * meshHeight];
             triangleArray = new int[(meshWidth - 1) * (meshHeight - 1) * 6];
+            triangleIndex = 0;
+        }
+        public MeshData(int meshWidth, int meshHeight, int meshDepth) {
+            vertexArray = new Vector3[meshWidth * meshHeight * meshDepth];
+            uvRays = new Vector2[meshWidth * meshHeight * meshDepth];
+            triangleArray = new int[(meshWidth - 1) * (meshHeight - 1) * (meshDepth - 1) * 6];
             triangleIndex = 0;
         }
 
