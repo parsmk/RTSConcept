@@ -195,7 +195,11 @@ public class MapGenerator : MonoBehaviour {
     
     public MeshData MarchCubes(int dimensions, float[,,] map) {
         MeshData meshData = new MeshData(dimensions, dimensions, dimensions);
+<<<<<<< HEAD
         Vector3[] outputVertices = new Vector3[dimensions * dimensions * dimensions];
+=======
+        Vector3[] vertexArray = new Vector3[dimensions * dimensions * dimensions];
+>>>>>>> 69725483c618e9c98a1b21b7d0f488454506ced5
         int[] triangleArray = new int[dimensions * dimensions * dimensions];
         int vertIndex = 0, triIndex = 0;
 
@@ -223,8 +227,12 @@ public class MapGenerator : MonoBehaviour {
                     }
 
                     int edgesIntersected = MarchingCubesConstants.edgeTable[cubeIndex];
+<<<<<<< HEAD
                     Vector3[] newVertices = new Vector3[12];
 
+=======
+                        
+>>>>>>> 69725483c618e9c98a1b21b7d0f488454506ced5
                     if (edgesIntersected == 0)
                         continue;
 
@@ -242,7 +250,12 @@ public class MapGenerator : MonoBehaviour {
                             float outputY = cordVertA.y + factor * (cordVertB.y - cordVertA.y);
                             float outputZ = cordVertA.z + factor * (cordVertB.z - cordVertA.z);
 
+<<<<<<< HEAD
                             newVertices[i] = new Vector3(outputX, outputY, outputZ);
+=======
+                            //TODO: Populate MeshData.VertexArray
+                            vertexArray[vertIndex] = new Vector3(outputX, outputY, outputZ); vertIndex++;
+>>>>>>> 69725483c618e9c98a1b21b7d0f488454506ced5
                         }
                     }
 
@@ -252,9 +265,16 @@ public class MapGenerator : MonoBehaviour {
                         triangleArray[triIndex] = (x * dimensions) + (y * dimensions) + z + i + z + i + 1; triIndex++;
                         triangleArray[triIndex] = (x * dimensions) + (y * dimensions) + z + i + z + i + 2; triIndex++;
 
+<<<<<<< HEAD
                         outputVertices[vertIndex] = newVertices[i]; vertIndex++;
                         outputVertices[vertIndex] = newVertices[i + 1]; vertIndex++;
                         outputVertices[vertIndex] = newVertices[i + 2]; vertIndex++;
+=======
+                        //TODO: Populate MeshData.TriangleArray
+                        triangleArray[triIndex] = triIndex + a; triIndex++;
+                        triangleArray[triIndex] = triIndex + b; triIndex++;
+                        triangleArray[triIndex] = triIndex + c; triIndex++;
+>>>>>>> 69725483c618e9c98a1b21b7d0f488454506ced5
                     }
 
                 }
