@@ -97,10 +97,6 @@ public static class NoiseGenerator {
                     // sampleY = (freq*y + c)
                     float sampleY = frequency * (y + octaveOffsets[i].y) / scale;
 
-
-                    if (x == 2) {
-                        Debug.Log("SampleX: " + sampleX + "; SampleY: " + sampleY);
-                    }
                     // a * perlin(sampleX) && a * perlin(sampleY)
                     // *2 - 1 to include negative values
                     noiseHeight += amplitude * (Noise(noiseMoide, interpolateMode, localInterpolateMode, sampleX, sampleY) * 2 - 1);

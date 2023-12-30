@@ -17,7 +17,7 @@ public class MapBuilder : MonoBehaviour {
     public int mapRegionDepth = 2;
     public static int regionSize = MapGenerator.dimensions - 1;
 
-    private Dictionary<Vector2, Region> regions = new Dictionary<Vector2, Region>();
+    private Dictionary<Vector3, Region> regions = new Dictionary<Vector3, Region>();
 
     public void BuildMap() {
         switch(mapType) {
@@ -61,7 +61,7 @@ public class MapBuilder : MonoBehaviour {
         float minMapHeight = 0;
         for (int x = 0; x < mapRegionDimensions; x++) {
             for (int y = 0; y < mapRegionDimensions; y++) {
-                Vector2 coord = new Vector2(x, y) * regionSize;
+                Vector3 coord = new Vector3(x, 0, y) * regionSize;
                 MapData2D mapData = mapGen.GenerateMap2D(coord);
 
                 if (!regions.ContainsKey(coord)) {
@@ -75,7 +75,7 @@ public class MapBuilder : MonoBehaviour {
             }
         }
 
-        foreach (Vector2 key in regions.Keys) {
+        foreach (Vector3 key in regions.Keys) {
             MapData2D normalizedData = mapGen.NormalizeMap((MapData2D)regions[key].mapData, minMapHeight, maxMapHeight);
             regions[key].UpdateRegion(normalizedData);
         }
@@ -107,6 +107,7 @@ public class MapBuilder : MonoBehaviour {
 
         public Region(MapData3D mapData, Vector3 inputCoord, Transform parent, Material material) {
             this.mapData = mapData;
+
             // Position and generate Terrain GameObject
             position = inputCoord;
             terrain = new GameObject("Region(" + position.x + ", " + position.y + ", " + position.z + ")");
