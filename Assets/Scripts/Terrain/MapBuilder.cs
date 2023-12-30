@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -19,6 +20,42 @@ public class MapBuilder : MonoBehaviour {
     private Dictionary<Vector2, Region> regions = new Dictionary<Vector2, Region>();
 
     public void BuildMap() {
+        switch(mapType) {
+            case MapType.HeightMap:
+                BuildMap2D();
+                break;
+            case MapType.ComplexMap:
+                BuildMap3D();
+                break;
+        }
+    }
+
+    private void BuildMap3D() {
+        MapGenerator mapGen = GetComponent<MapGenerator>();
+        float maxMapHeight = 0;
+        float minMapHeight = 0;
+
+        for (int x = 0; x < dimensions; x++) {
+            for (int y = 0; y < dimensions; y++) {
+                for (int z = 0; z < dimensions; z++) {
+                    Vector3 coord = new Vector3(x, y, z) * dimensions;
+                    MapData3D mapData = mapGen.GenerateMap3D(coord);
+
+                    if (!regions.ContainsKey(coord)) {
+                        regions.Add(coord, new Region(mapData, coord, mapWrapper.transform, meshMaterial));
+                    }
+
+                    if (maxMapHeight < mapData.noiseData.localMax)
+                        maxMapHeight = mapData.noiseData.localMax;
+                    if (minMapHeight > mapData.noiseData.localMin)
+                        minMapHeight = mapData.noiseData.localMin;
+                }
+            }
+        }
+
+    }
+
+    private void BuildMap2D() {
         MapGenerator mapGen = GetComponent<MapGenerator>();
         float maxMapHeight = 0;
         float minMapHeight = 0;
@@ -72,10 +109,10 @@ public class MapBuilder : MonoBehaviour {
             this.mapData = mapData;
             // Position and generate Terrain GameObject
             position = inputCoord;
-            terrain = new GameObject("Region(" + position.x + ", " + position.y + ")");
+            terrain = new GameObject("Region(" + position.x + ", " + position.y + ", " + position.z + ")");
             terrain.isStatic = true;
             terrain.transform.parent = parent;
-            terrain.transform.position = new Vector3(position.x, 0, position.y);
+            terrain.transform.position = new Vector3(position.x, position.y, position.z);
             terrainMeshFilter = terrain.AddComponent<MeshFilter>();
             terrainMeshRenderer = terrain.AddComponent<MeshRenderer>();
 

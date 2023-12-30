@@ -339,14 +339,14 @@ public static class NoiseGenerator {
         int value111 = permutationTable[ChoosePermutationIndex(uCubeX + 1, uCubeY + 1, uCubeZ + 1)];
 
         //Dot product of vector pointing to grid point and constant vector determined by randomValue
-        float dot000 = Vector3.Dot(vector000, NoiseConstants.constantVectors[(value000 & 15) % 12 - 1]);
-        float dot100 = Vector3.Dot(vector100, NoiseConstants.constantVectors[(value100 & 15) % 12 - 1]);
-        float dot010 = Vector3.Dot(vector010, NoiseConstants.constantVectors[(value010 & 15) % 12 - 1]);
-        float dot110 = Vector3.Dot(vector110, NoiseConstants.constantVectors[(value110 & 15) % 12 - 1]);
-        float dot001 = Vector3.Dot(vector001, NoiseConstants.constantVectors[(value001 & 15) % 12 - 1]);
-        float dot101 = Vector3.Dot(vector101, NoiseConstants.constantVectors[(value101 & 15) % 12 - 1]);
-        float dot011 = Vector3.Dot(vector011, NoiseConstants.constantVectors[(value011 & 15) % 12 - 1]);
-        float dot111 = Vector3.Dot(vector111, NoiseConstants.constantVectors[(value111 & 15) % 12 - 1]);
+        float dot000 = Vector3.Dot(vector000, NoiseConstants.constantVectors[(value000 & 7) % 12]);
+        float dot100 = Vector3.Dot(vector100, NoiseConstants.constantVectors[(value100 & 7) % 12]);
+        float dot010 = Vector3.Dot(vector010, NoiseConstants.constantVectors[(value010 & 7) % 12]);
+        float dot110 = Vector3.Dot(vector110, NoiseConstants.constantVectors[(value110 & 7) % 12]);
+        float dot001 = Vector3.Dot(vector001, NoiseConstants.constantVectors[(value001 & 7) % 12]);
+        float dot101 = Vector3.Dot(vector101, NoiseConstants.constantVectors[(value101 & 7) % 12]);
+        float dot011 = Vector3.Dot(vector011, NoiseConstants.constantVectors[(value011 & 7) % 12]);
+        float dot111 = Vector3.Dot(vector111, NoiseConstants.constantVectors[(value111 & 7) % 12]);
 
         float smoothDeltaX = LocalInterpolate(localInterpolateMode, deltaX);
         float smoothDeltaY = LocalInterpolate(localInterpolateMode, deltaY);
