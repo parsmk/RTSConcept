@@ -18,7 +18,7 @@ public class DayController : MonoBehaviour
 
     void Start() {
         MapBuilder mapBuilder = mapGen.GetComponent<MapBuilder>();
-        radius = (mapBuilder.mapRegionDimensions * MapBuilder.regionSize) / 2;
+        radius = (mapBuilder.mapDimensions * MapBuilder.regionSize) / 2;
 
         currentMoonRotation.x = angle + 180 + angleOffset;
         currentSunRotation.x = angle - angleOffset;

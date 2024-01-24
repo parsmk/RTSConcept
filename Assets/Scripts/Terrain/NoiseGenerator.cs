@@ -61,7 +61,7 @@ public static class NoiseGenerator {
             float lacunarity,
             float persistence,
             int octaves,
-            NoiseMode noiseMoide,
+            NoiseMode noiseMode,
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode
     ) {
@@ -99,7 +99,7 @@ public static class NoiseGenerator {
 
                     // a * perlin(sampleX) && a * perlin(sampleY)
                     // *2 - 1 to include negative values
-                    noiseHeight += amplitude * (Noise(noiseMoide, interpolateMode, localInterpolateMode, sampleX, sampleY) * 2 - 1);
+                    noiseHeight += amplitude * ((Noise(noiseMode, interpolateMode, localInterpolateMode, sampleX, sampleY) * 2) - 1);
 
                     //Change the amplitude and frequency based on a multiplier
 
@@ -172,7 +172,7 @@ public static class NoiseGenerator {
                         float sampleZ = frequency * (z + octaveOffsets[i].z) / scale;
                         // a * perlin(sampleX) && a * perlin(sampleY)
                         // *2 - 1 to include negative values
-                        noiseHeight += amplitude * (Noise(noiseMode, interpolateMode, localInterpolateMode, sampleX, sampleY, sampleZ) * 2 - 1);
+                        noiseHeight += amplitude * ((Noise(noiseMode, interpolateMode, localInterpolateMode, sampleX, sampleY, sampleZ) * 2) - 1);
 
                         //Change the amplitude and frequency based on a multiplier
 
@@ -245,9 +245,9 @@ public static class NoiseGenerator {
                 case NoiseMode.UnityPerlin:
                     return Mathf.PerlinNoise(x, y);
                 case NoiseMode.CustomPerlin:
-                    return Perlin(interpolateMode, localInterpolateMode, x, y, (float)z);
+                    return Perlin(interpolateMode, localInterpolateMode, x, y, z.Value);
                 case NoiseMode.Simplex:
-                    return Simplex(interpolateMode, localInterpolateMode, x, y, (float)z);
+                    return Simplex(interpolateMode, localInterpolateMode, x, y, z.Value);
             }
         }
 
@@ -310,9 +310,9 @@ public static class NoiseGenerator {
         int uCubeY = (int)Mathf.Floor(y) & 255;
         int uCubeZ = (int)Mathf.Floor(z) & 255;
 
-        float deltaX = x - uCubeX;
-        float deltaY = y - uCubeY;
-        float deltaZ = z - uCubeZ;
+        float deltaX = x - Mathf.Floor(x);
+        float deltaY = y - Mathf.Floor(y);
+        float deltaZ = z - Mathf.Floor(z);
 
         //Vector from Unit Cube vertex (x,y,z) to coordinate
         Vector3 vector000 = new Vector3(deltaX, deltaY, deltaZ);
