@@ -3,7 +3,6 @@ using UnityEngine;
 using static NoiseGenerator;
 using static MeshGenerator;
 using static ColorGenerator;
-using System.Threading.Tasks;
 
 public class MapBuilder : MonoBehaviour {
     public GameObject mapWrapper;
