@@ -1,13 +1,16 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using static NoiseGenerator;
 using static MeshGenerator;
 using static ColorGenerator;
+using static MapBuilder;
+using UnityEditor.Experimental.GraphView;
 
 public class MapBuilder : MonoBehaviour {
     public GameObject mapWrapper;
 
-    public enum MapType { HeightMap, ComplexMap };
+    public enum MapType { NoiseVisualizor, HeightMap, ComplexMap };
     public MapType mapType = MapType.HeightMap;
 
     public int mapDimensions = 2;
@@ -54,20 +57,55 @@ public class MapBuilder : MonoBehaviour {
     public Material meshMaterial;
     #endregion
 
-    private Dictionary<Vector3, Region> regions = new Dictionary<Vector3, Region>();
+    #region Visualizor
+    [Header("Visualizor")]
+    public GameObject visualizor;
+    public Material visualizorMaterial;
+    #endregion
+
+    private Dictionary<Vector3, Region> regions = new Dictionary<Vector3, Region>(); 
 
     public void BuildMap() {
         switch(mapType) {
+            case MapType.NoiseVisualizor:
+                VisualizeNoise(visualizor);
+                break;
             case MapType.HeightMap:
-                BuildMap2D();
+                BuildMapBase2D();
+                PopulateMap2D();
                 break;
             case MapType.ComplexMap:
-                BuildMap3D();
+                BuildMapBase3D();
                 break;
         }
     }
+    public void VisualizeNoise(GameObject obj) {
+        MeshRenderer renderer = obj.GetComponent<MeshRenderer>();
 
-    private void BuildMap2D() {
+        NoiseData2D noise = GenerateNoise(seed,
+                                          scale,
+                                          noiseDimensions,
+                                          mapOffset,
+                                          lacunarity,
+                                          persistence,
+                                          octaves,
+                                          noiseMode,
+                                          noiseInterpolateMode,
+                                          noiseLocalInterpolateMode
+        );
+
+        Texture2D output = new Texture2D(noiseDimensions, noiseDimensions);
+        output.filterMode = FilterMode.Point;
+        output.wrapMode = TextureWrapMode.Clamp;
+        output.SetPixels(GenerateForColorMap(noiseDimensions, noise.map, color));
+        output.Apply();
+
+        renderer.sharedMaterial = visualizorMaterial;
+        renderer.sharedMaterial.mainTexture = output;
+    }
+
+    #region MapBase Builder
+    private void BuildMapBase2D() {
         float maxMapHeight = 0;
         float minMapHeight = 0;
         (Vector3 key, NoiseData2D noise)[] noiseData = new (Vector3 key, NoiseData2D noise)[mapDimensions * mapDimensions];
@@ -77,17 +115,16 @@ public class MapBuilder : MonoBehaviour {
                 Vector3 coord = new Vector3(x, 0, y) * regionSize;
 
                 noiseData[index].key = coord;
-                noiseData[index].noise = GenerateNoise(
-                                seed,
-                                scale,
-                                noiseDimensions,
-                                new Vector2(coord.x + mapOffset.x, coord.z + mapOffset.y),
-                                lacunarity,
-                                persistence,
-                                octaves,
-                                noiseMode,
-                                noiseInterpolateMode,
-                                noiseLocalInterpolateMode
+                noiseData[index].noise = GenerateNoise(seed,
+                                                       scale,
+                                                       noiseDimensions,
+                                                       new Vector2(coord.x + mapOffset.x, coord.z + mapOffset.y),
+                                                       lacunarity,
+                                                       persistence,
+                                                       octaves,
+                                                       noiseMode,
+                                                       noiseInterpolateMode,
+                                                       noiseLocalInterpolateMode
                 );
 
 
@@ -98,11 +135,8 @@ public class MapBuilder : MonoBehaviour {
             }
         }
 
-        for (int x = 0, index = 0; x < mapDimensions; x++) {
-            for (int y = 0; y < mapDimensions; y++, index++) {
-                noiseData[index].noise = NormalizeNoise(noiseData[index].noise, minMapHeight, maxMapHeight);
-            }
-        }
+        for (int i = 0; i < noiseData.Length; i++)
+            noiseData[i].noise = NormalizeNoise(noiseData[i].noise, minMapHeight, maxMapHeight);
 
         foreach ((Vector3 key, NoiseData2D noise) entry in noiseData) {
             MeshData meshData = GenerateMeshData(entry.noise.map, noiseDimensions, heightModifier, animationCurve);
@@ -113,7 +147,7 @@ public class MapBuilder : MonoBehaviour {
         }
     }
 
-    private void BuildMap3D() {
+    private void BuildMapBase3D() {
         float maxMapHeight = 0;
         float minMapHeight = 0;
         (Vector3 key, NoiseData3D noise)[] noiseData = new (Vector3 key, NoiseData3D noise)[mapDimensions * mapDimensions];
@@ -124,17 +158,16 @@ public class MapBuilder : MonoBehaviour {
                     Vector3 coord = new Vector3(x, z, y) * regionSize;
 
                     noiseData[index].key = coord;
-                    noiseData[index].noise = GenerateNoise(
-                                    seed,
-                                    scale,
-                                    noiseDimensions,
-                                    coord + mapOffset,
-                                    lacunarity,
-                                    persistence,
-                                    octaves,
-                                    noiseMode,
-                                    noiseInterpolateMode,
-                                    noiseLocalInterpolateMode
+                    noiseData[index].noise = GenerateNoise(seed,
+                                                           scale,
+                                                           noiseDimensions,
+                                                           coord + mapOffset,
+                                                           lacunarity,
+                                                           persistence,
+                                                           octaves,
+                                                           noiseMode,
+                                                           noiseInterpolateMode,
+                                                           noiseLocalInterpolateMode
                     );
 
 
@@ -146,17 +179,13 @@ public class MapBuilder : MonoBehaviour {
             }
         }
 
-        for (int x = 0, index = 0; x < mapDimensions; x++) {
-            for (int y = 0; y < mapDimensions; y++) {
-                for (int z = 0; z < mapDepth; z++, index++) {
-                    noiseData[index].noise = NormalizeNoise(noiseData[index].noise, minMapHeight, maxMapHeight);
-                }
-            }
-        }
+        // Try to normalize noise retroactively
+        for (int i = 0; i < noiseData.Length; i++)
+            noiseData[i].noise = NormalizeNoise(noiseData[i].noise, minMapHeight, maxMapHeight);    
 
+        //Fix Generate MeshData3D
         foreach ((Vector3 key, NoiseData3D noise) entry in noiseData) {
             MeshData meshData = GenerateMeshData(entry.noise.map, noiseDimensions, threshhold, textureDetail, meshDetail);
-            //TODO:: Work on colormap
             Color[] colorMap = ChooseColorMap(entry.noise.map);
             MapData mapData = new MapData(noiseDimensions, entry.noise, meshData, colorMap);
 
@@ -201,6 +230,11 @@ public class MapBuilder : MonoBehaviour {
 
         return output;
     }
+    #endregion
+
+    private void PopulateMap2D() {
+
+    }
 
     public void ClearMap() {
         if (regions.Count < 1)
@@ -231,6 +265,7 @@ public class MapBuilder : MonoBehaviour {
 
         public MeshRenderer terrainMeshRenderer;
         public MeshFilter terrainMeshFilter;
+        public MeshCollider terrainMeshCollider;
         public Material terrainMaterial;
 
         public Region(MapData mapData, Vector3 inputCoord, Transform parent, Material material) {
@@ -242,14 +277,21 @@ public class MapBuilder : MonoBehaviour {
             regionObject.isStatic = true;
             regionObject.transform.parent = parent;
             regionObject.transform.position = new Vector3(position.x, position.y, position.z);
+
+            //Layers and Mask
+            regionObject.tag = "Terrain";
+            regionObject.layer = LayerMask.NameToLayer("Terrain");
+
+            //RegionObject Component Instantiation
             terrainMeshFilter = regionObject.AddComponent<MeshFilter>();
             terrainMeshRenderer = regionObject.AddComponent<MeshRenderer>();
+            terrainMeshCollider = regionObject.AddComponent<MeshCollider>();
 
-            // Generate Terrain Texture, Material and Mesh
+            // Generate and Assign Terrain Texture, Material and Mesh
             terrainMaterial = new Material(material);
             terrainMeshRenderer.sharedMaterial = terrainMaterial;
             terrainMeshRenderer.sharedMaterial.mainTexture = GenerateRegionTexture();
-            terrainMeshFilter.sharedMesh = mapData.meshData.CreateMesh();
+            terrainMeshFilter.sharedMesh = terrainMeshCollider.sharedMesh = mapData.meshData.CreateMesh();            
         }
 
         private Texture2D GenerateRegionTexture() {

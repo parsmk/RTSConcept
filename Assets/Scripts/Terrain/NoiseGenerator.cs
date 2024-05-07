@@ -238,8 +238,6 @@ public static class NoiseGenerator {
                 case NoiseMode.Simplex:
                     return Simplex(interpolateMode, localInterpolateMode, x, y);
             }
-
-            return output;
         } else {
             switch (noiseMode) {
                 case NoiseMode.UnityPerlin:
@@ -373,6 +371,18 @@ public static class NoiseGenerator {
             float x, float y, float z
     ) {
         return 0f;
+    }
+
+    private static float Worley(int pointSetSize, float x, float y) {
+        Vector2[] predefinedPoints = new Vector2[pointSetSize];
+        float output = float.MinValue;
+
+        foreach (Vector2 point in predefinedPoints) {
+            float dist = Vector2.Distance(new Vector2(x, y), point);
+            output = Mathf.Min(dist, output);
+        }
+
+        return output;
     }
 
     #region Local Interpolation Methods

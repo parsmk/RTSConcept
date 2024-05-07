@@ -29,82 +29,106 @@ public static class MeshGenerator {
         int vertIndex = 0;
         int edgeSize = (dimensions - 1) / meshDetail;
 
+        // Go through the space
         for (int x = 0; x < dimensions - edgeSize; x += edgeSize) {
             for (int y = 0; y < dimensions - edgeSize; y += edgeSize) {
                 for (int z = 0; z < dimensions - edgeSize; z += edgeSize) {
                     (Vector3 cord, float value)[] cubeVertices = new (Vector3 cord, float value)[8];
                     int cubeIndex = 0;
 
-                    cubeVertices[0] = (new Vector3(x, y, z), map[x, y, z]);
-                    cubeVertices[1] = (new Vector3(x + edgeSize, y, z), map[x + edgeSize, y, z]);
-                    cubeVertices[2] = (new Vector3(x, y + edgeSize, z), map[x, y + edgeSize, z]);
-                    cubeVertices[3] = (new Vector3(x, y, z + edgeSize), map[x, y, z + edgeSize]);
-                    cubeVertices[4] = (new Vector3(x + edgeSize, y, z + edgeSize), map[x + edgeSize, y, z + edgeSize]);
-                    cubeVertices[5] = (new Vector3(x + edgeSize, y + edgeSize, z), map[x + edgeSize, y + edgeSize, z]);
-                    cubeVertices[6] = (new Vector3(x, y + edgeSize, z + edgeSize), map[x, y + edgeSize, z + edgeSize]);
-                    cubeVertices[7] = (new Vector3(x + edgeSize, y + edgeSize, z + edgeSize), map[x + edgeSize, y + edgeSize, z + edgeSize]);
+                    //Choose current Cube vertex
+                    cubeVertices[0] = (new Vector3(x, y, z), 
+                                               map[x, y, z]);
+                    cubeVertices[1] = (new Vector3(x + edgeSize, y, z), 
+                                               map[x + edgeSize, y, z]);
+                    cubeVertices[2] = (new Vector3(x, y + edgeSize, z), 
+                                               map[x, y + edgeSize, z]);
+                    cubeVertices[3] = (new Vector3(x, y, z + edgeSize), 
+                                               map[x, y, z + edgeSize]);
+                    cubeVertices[4] = (new Vector3(x + edgeSize, y, z + edgeSize), 
+                                               map[x + edgeSize, y, z + edgeSize]);
+                    cubeVertices[5] = (new Vector3(x + edgeSize, y + edgeSize, z), 
+                                               map[x + edgeSize, y + edgeSize, z]);
+                    cubeVertices[6] = (new Vector3(x, y + edgeSize, z + edgeSize), 
+                                               map[x, y + edgeSize, z + edgeSize]);
+                    cubeVertices[7] = (new Vector3(x + edgeSize, y + edgeSize, z + edgeSize), 
+                                               map[x + edgeSize, y + edgeSize, z + edgeSize]);
 
+                    // Check which vertices are inside model
                     for (int i = 0; i < cubeVertices.Length; i++) {
                         if (cubeVertices[i].value < threshhold) {
                             cubeIndex |= 1 << i;
                         }
                     }
 
+                    // Find edge amongst possiblities
                     int edgesIntersected = MarchingCubesConstants.edgeTable[cubeIndex];
                     Vector3[] newVertices = new Vector3[12];
 
+                    // if no edges are intersecting don't need to do anything
                     if (edgesIntersected == 0)
                         continue;
 
+                    // otheriwise 
                     for (int edge = 1, i = 0; edge <= 0xfff; edge <<= 1, i++) {
                         if ((edgesIntersected & edge) != 0) {
+                            // Choose corners based on edgeTable
+                            // GetMapValue
                             float valueVertA = cubeVertices[MarchingCubesConstants.edgeIndices[i].a].value;
                             float valueVertB = cubeVertices[MarchingCubesConstants.edgeIndices[i].b].value;
 
+                            // GetPosition
                             Vector3 cordVertA = cubeVertices[MarchingCubesConstants.edgeIndices[i].a].cord;
                             Vector3 cordVertB = cubeVertices[MarchingCubesConstants.edgeIndices[i].b].cord;
 
+                            // Interpolation Factor
                             float factor = (threshhold - valueVertA) / (valueVertB - valueVertA);
 
+                            // Interpolate
                             float outputX = cordVertA.x + factor * (cordVertB.x - cordVertA.x);
                             float outputY = cordVertA.y + factor * (cordVertB.y - cordVertA.y);
                             float outputZ = cordVertA.z + factor * (cordVertB.z - cordVertA.z);
 
+                            // Store newVertex
                             newVertices[i] = new Vector3(outputX, outputY, outputZ);
                         }
                     }
 
                     for (int i = 0; MarchingCubesConstants.triangulationTable[cubeIndex][i] != -1; i += 3) {
+                        // Get Model Triangles
                         int triA = MarchingCubesConstants.triangulationTable[cubeIndex][i];
                         int triB = MarchingCubesConstants.triangulationTable[cubeIndex][i + 1];
                         int triC = MarchingCubesConstants.triangulationTable[cubeIndex][i + 2];
 
-                        //TODO:: Double check this mapping
-                        int indexA = triA + x + (y * dimensions) + z * (dimensions * dimensions);
-                        int indexB = triB + x + (y * dimensions) + z * (dimensions * dimensions);
-                        int indexC = triC + x + (y * dimensions) + z * (dimensions * dimensions);
-
-                        meshData.AddTriangle(indexA, indexB, indexC);
-
+                        // Calculate UVVertex
                         Vector2 uv = new Vector2(outputVertices[vertIndex].x / dimensions, outputVertices[vertIndex].z / dimensions) * textureDetail;
 
-                        outputVertices[vertIndex] = newVertices[triA];
-                        uvRays[vertIndex] = uv;
-                        vertIndex++;
+                        // newVertex Index
+                        int vertIndexA = vertIndex;
+                        int vertIndexB = vertIndex + 1;
+                        int vertIndexC = vertIndex + 2;
 
-                        outputVertices[vertIndex] = newVertices[triB];
-                        uvRays[vertIndex] = uv;
-                        vertIndex++;
+                        // Assign UV for each vertex
+                        uvRays[vertIndexA] = uv;
+                        uvRays[vertIndexB] = uv;
+                        uvRays[vertIndexC] = uv;
 
-                        outputVertices[vertIndex] = newVertices[triC];
-                        uvRays[vertIndex] = uv;
-                        vertIndex++;
+                        // Assign newVertices in order of the triangle to Mesh 
+                        outputVertices[vertIndexA] = newVertices[triA];
+                        outputVertices[vertIndexB] = newVertices[triB];
+                        outputVertices[vertIndexC] = newVertices[triC];
+
+                        // Add Triangle to MeshData
+                        meshData.AddTriangle(vertIndexA, vertIndexB, vertIndexC);
+
+                        vertIndex += 3;
                     }
 
                 }
             }
         }
 
+        // Populate VertexARray
         meshData.vertexArray = outputVertices;
         meshData.uvRays = uvRays;
 

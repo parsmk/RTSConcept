@@ -28,7 +28,7 @@ public class Player : MonoBehaviour {
     private void CameraMovement() {
         ButtonMovement();
         DragMovement();
-        MouseMovement();
+        //MouseMovement();
     }
 
     private void ButtonMovement() {
