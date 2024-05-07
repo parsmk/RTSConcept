@@ -23,6 +23,7 @@ public class InteractableObject : MonoBehaviour {
     private void Update() {
         Move();
 
+        // Keep unit on terrain
         if (prevPosition.x != transform.position.x || prevPosition.z != transform.position.z) {
             RaycastHit hit;
             LayerMask terrainMask = LayerMask.GetMask("Terrain");
