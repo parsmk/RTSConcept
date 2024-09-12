@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 
 public static class MeshGenerator {
+    //2D Space
     public static MeshData GenerateMeshData(float[,] map, int dimensions, float heightModifier, AnimationCurve animationCurve) {
         MeshData meshData = new MeshData(dimensions, dimensions);
 
@@ -20,8 +21,10 @@ public static class MeshGenerator {
         return meshData;
     }
 
-    //Marching Cubes algorithm
+    //3D Space
     public static MeshData GenerateMeshData(float[,,] map, int dimensions, float threshhold, float textureDetail, int meshDetail) {
+        //Marching Cubes Algorithm
+
         MeshData meshData = new MeshData(dimensions, dimensions, dimensions);
         Vector3[] outputVertices = new Vector3[dimensions * dimensions * dimensions];
         Vector2[] uvRays = new Vector2[dimensions * dimensions * dimensions];
@@ -108,15 +111,15 @@ public static class MeshGenerator {
                         int vertIndexB = vertIndex + 1;
                         int vertIndexC = vertIndex + 2;
 
-                        // Assign UV for each vertex
-                        uvRays[vertIndexA] = uv;
-                        uvRays[vertIndexB] = uv;
-                        uvRays[vertIndexC] = uv;
-
                         // Assign newVertices in order of the triangle to Mesh 
                         outputVertices[vertIndexA] = newVertices[triA];
                         outputVertices[vertIndexB] = newVertices[triB];
                         outputVertices[vertIndexC] = newVertices[triC];
+
+                        // Assign UV for each vertex
+                        uvRays[vertIndexA] = CalculateCubicUV(newVertices[triA]);
+                        uvRays[vertIndexB] = CalculateCubicUV(newVertices[triB]);
+                        uvRays[vertIndexC] = CalculateCubicUV(newVertices[triC]);
 
                         // Add Triangle to MeshData
                         meshData.AddTriangle(vertIndexA, vertIndexB, vertIndexC);
@@ -135,6 +138,22 @@ public static class MeshGenerator {
         return meshData;
     }
 
+    private static Vector2 CalculateCubicUV(Vector3 currentVertex) {
+        Vector2 output = new Vector2();
+
+        float maxDimension = Mathf.Max(Mathf.Max(currentVertex.x, currentVertex.y), currentVertex.z);
+
+        if (maxDimension == currentVertex.x) {
+            output = new Vector2(currentVertex.y, currentVertex.z);
+        } else if (maxDimension == currentVertex.y) {
+            output = new Vector2(currentVertex.x, currentVertex.z);
+        } else {
+            return new Vector2(currentVertex.x, currentVertex.y);
+        }
+
+        return output;
+    }
+
     public struct MeshData {
         public Vector3[] vertexArray;
         public Vector2[] uvRays;
@@ -147,6 +166,7 @@ public static class MeshGenerator {
             triangleArray = new int[(meshWidth - 1) * (meshHeight - 1) * 6];
             triangleIndex = 0;
         }
+
         public MeshData(int meshWidth, int meshHeight, int meshDepth) {
             vertexArray = new Vector3[meshWidth * meshHeight * meshDepth];
             uvRays = new Vector2[meshWidth * meshHeight * meshDepth];

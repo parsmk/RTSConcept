@@ -3,7 +3,9 @@ using UnityEngine;
 public static class NoiseGenerator {
     public enum NoiseInterpolateMode { Hermite, Lerp };
     public enum NoiseLocalInterpolateMode { SmoothStep, Fade };
-    public enum NoiseMode { UnityPerlin, CustomPerlin, Simplex };
+    public enum NoiseMode { UnityPerlin, CustomPerlin, Simplex, Worley };
+    
+    //TODO IsFractal? Bool
 
     public struct NoiseData2D {
         public int dimensions;
@@ -53,6 +55,9 @@ public static class NoiseGenerator {
         }
     }
 
+    // TODO public static NoiseData3D GenerateNoise() GENERIC GENERATENOISE FUNCTION 
+
+    // TODO replace current GenerateNoise() with FractalNoise()
     public static NoiseData2D GenerateNoise(
             int seed,
             float scale,
@@ -123,6 +128,7 @@ public static class NoiseGenerator {
         return new NoiseData2D(dimensions, maxNoiseHeight, minNoiseHeight, map);
     }
 
+    // TODO replace current GenerateNoise() with FractalNoise()
     public static NoiseData3D GenerateNoise(
         int seed,
         float scale,
@@ -357,6 +363,7 @@ public static class NoiseGenerator {
         return Interpolate(interpolateMode, interpolatedCloseFace, interpolatedFarFace, smoothDeltaZ);
     }
 
+    //TODO Implement SimplexNoise2D
     private static float Simplex(
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode,
@@ -365,6 +372,7 @@ public static class NoiseGenerator {
         return 0f;
     }
 
+    //TODO Implement SimplexNoise3D
     private static float Simplex(
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode,
@@ -373,14 +381,9 @@ public static class NoiseGenerator {
         return 0f;
     }
 
-    private static float Worley(int pointSetSize, float x, float y) {
-        Vector2[] predefinedPoints = new Vector2[pointSetSize];
-        float output = float.MinValue;
-
-        foreach (Vector2 point in predefinedPoints) {
-            float dist = Vector2.Distance(new Vector2(x, y), point);
-            output = Mathf.Min(dist, output);
-        }
+    //TODO Implement Worley Noise
+    public static float Worley(Vector2[] inputPoints, float x, float y) {
+        float output = 0f;
 
         return output;
     }
@@ -410,7 +413,6 @@ public static class NoiseGenerator {
     #endregion
 
     #region Global Interpolation Methods
-
     private static float Interpolate(NoiseInterpolateMode mode, float a, float b, float t) {
         float output = 0f;
         switch (mode) {
@@ -431,15 +433,15 @@ public static class NoiseGenerator {
 
         return h1 * a + h2 * b;
     }
-
     #endregion
 
-    #region Permutation Table
+    #region Helper functions
     private static int ChoosePermutationIndex(int x, int y, int z) {
         return (x + y * z) % 511;
     }
 
     private static int[] permutationTable;
+
     private static void GeneratePermutationTable() {
         permutationTable = new int[512];
 

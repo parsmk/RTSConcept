@@ -4,8 +4,6 @@ using UnityEngine;
 using static NoiseGenerator;
 using static MeshGenerator;
 using static ColorGenerator;
-using static MapBuilder;
-using UnityEditor.Experimental.GraphView;
 
 public class MapBuilder : MonoBehaviour {
     public GameObject mapWrapper;
@@ -41,7 +39,7 @@ public class MapBuilder : MonoBehaviour {
     //[HideInInspector]
     public Color color;
     //[HideInInspector]
-    public TerrainFeature[] terrainTypes;
+    public TerrainType[] terrainTypes;
     public float textureDetail = 2;
     #endregion
 
@@ -71,14 +69,14 @@ public class MapBuilder : MonoBehaviour {
                 VisualizeNoise(visualizor);
                 break;
             case MapType.HeightMap:
-                BuildMapBase2D();
-                PopulateMap2D();
+                BuildRegions2D();
                 break;
             case MapType.ComplexMap:
-                BuildMapBase3D();
+                BuildRegions3D();
                 break;
         }
     }
+    
     public void VisualizeNoise(GameObject obj) {
         MeshRenderer renderer = obj.GetComponent<MeshRenderer>();
 
@@ -104,8 +102,7 @@ public class MapBuilder : MonoBehaviour {
         renderer.sharedMaterial.mainTexture = output;
     }
 
-    #region MapBase Builder
-    private void BuildMapBase2D() {
+    private void BuildRegions2D() {
         float maxMapHeight = 0;
         float minMapHeight = 0;
         (Vector3 key, NoiseData2D noise)[] noiseData = new (Vector3 key, NoiseData2D noise)[mapDimensions * mapDimensions];
@@ -135,19 +132,20 @@ public class MapBuilder : MonoBehaviour {
             }
         }
 
+        // Check if optimizing can be done using recursion
         for (int i = 0; i < noiseData.Length; i++)
             noiseData[i].noise = NormalizeNoise(noiseData[i].noise, minMapHeight, maxMapHeight);
 
         foreach ((Vector3 key, NoiseData2D noise) entry in noiseData) {
             MeshData meshData = GenerateMeshData(entry.noise.map, noiseDimensions, heightModifier, animationCurve);
             Color[] colorMap = ChooseColorMap(entry.noise.map);
-            MapData mapData = new MapData(noiseDimensions, entry.noise, meshData, colorMap);
+            MapData2D mapData = new MapData2D(noiseDimensions, entry.noise, meshData, colorMap);
 
             regions.Add(entry.key, new Region(mapData, entry.key, mapWrapper.transform, meshMaterial));
         }
     }
 
-    private void BuildMapBase3D() {
+    private void BuildRegions3D() {
         float maxMapHeight = 0;
         float minMapHeight = 0;
         (Vector3 key, NoiseData3D noise)[] noiseData = new (Vector3 key, NoiseData3D noise)[mapDimensions * mapDimensions];
@@ -187,7 +185,7 @@ public class MapBuilder : MonoBehaviour {
         foreach ((Vector3 key, NoiseData3D noise) entry in noiseData) {
             MeshData meshData = GenerateMeshData(entry.noise.map, noiseDimensions, threshhold, textureDetail, meshDetail);
             Color[] colorMap = ChooseColorMap(entry.noise.map);
-            MapData mapData = new MapData(noiseDimensions, entry.noise, meshData, colorMap);
+            MapData3D mapData = new MapData3D(noiseDimensions, entry.noise, meshData, colorMap);
 
             regions.Add(entry.key, new Region(mapData, entry.key, mapWrapper.transform, meshMaterial));
         }    
@@ -230,11 +228,6 @@ public class MapBuilder : MonoBehaviour {
 
         return output;
     }
-    #endregion
-
-    private void PopulateMap2D() {
-
-    }
 
     public void ClearMap() {
         if (regions.Count < 1)
@@ -257,72 +250,40 @@ public class MapBuilder : MonoBehaviour {
         if (heightModifier < 0) { heightModifier = 0; }
     }
 
-    private class Region {
-        public GameObject regionObject;
-        public MapData mapData;
-        public TerrainFeature[] regionFeatures;
-        public Vector3 position = Vector3.zero;
-
-        public MeshRenderer terrainMeshRenderer;
-        public MeshFilter terrainMeshFilter;
-        public MeshCollider terrainMeshCollider;
-        public Material terrainMaterial;
-
-        public Region(MapData mapData, Vector3 inputCoord, Transform parent, Material material) {
-            this.mapData = mapData;
-
-            // Position and generate Terrain GameObject
-            position = inputCoord;
-            regionObject = new GameObject("Region(" + position.x + ", " + position.y + ", " + position.z + ")");
-            regionObject.isStatic = true;
-            regionObject.transform.parent = parent;
-            regionObject.transform.position = new Vector3(position.x, position.y, position.z);
-
-            //Layers and Mask
-            regionObject.tag = "Terrain";
-            regionObject.layer = LayerMask.NameToLayer("Terrain");
-
-            //RegionObject Component Instantiation
-            terrainMeshFilter = regionObject.AddComponent<MeshFilter>();
-            terrainMeshRenderer = regionObject.AddComponent<MeshRenderer>();
-            terrainMeshCollider = regionObject.AddComponent<MeshCollider>();
-
-            // Generate and Assign Terrain Texture, Material and Mesh
-            terrainMaterial = new Material(material);
-            terrainMeshRenderer.sharedMaterial = terrainMaterial;
-            terrainMeshRenderer.sharedMaterial.mainTexture = GenerateRegionTexture();
-            terrainMeshFilter.sharedMesh = terrainMeshCollider.sharedMesh = mapData.meshData.CreateMesh();            
-        }
-
-        private Texture2D GenerateRegionTexture() {
-            Texture2D output = new Texture2D(mapData.dimensions, mapData.dimensions);
-            output.filterMode = FilterMode.Point;
-            output.wrapMode = TextureWrapMode.Clamp;
-            output.SetPixels(mapData.colorMap);
-            output.Apply();
-
-            return output;
-        }
-    }
-
-    public struct MapData {
+    public struct MapData2D {
         public int dimensions;
-        public NoiseData3D noiseData;
+        public NoiseData2D noiseData;
         public MeshData meshData;
         public Color[] colorMap;
 
-        public MapData(int dimensions, NoiseData3D noiseData, MeshData meshData, Color[] colorMap) {
+        public MapData2D(int dimensions, NoiseData2D noiseData, MeshData meshData, Color[] colorMap) {
             this.dimensions = dimensions;
             this.noiseData = noiseData;
             this.meshData = meshData;
             this.colorMap = colorMap;
         }
+
+        public static implicit operator MapData2D(MapData3D mapData2D) {
+            return new MapData2D(mapData2D.dimensions, mapData2D.noiseData, mapData2D.meshData, mapData2D.colorMap);
+        }
     }
 
-    [System.Serializable]
-    public struct TerrainFeature {
-        public string name;
-        public float heightThreshold;
-        public Color colour;
+    public struct MapData3D {
+        public int dimensions;
+        public NoiseData3D noiseData;
+        public MeshData meshData;
+        public Color[] colorMap;
+
+        public MapData3D(int dimensions, NoiseData3D noiseData, MeshData meshData, Color[] colorMap) {
+            this.dimensions = dimensions;
+            this.noiseData = noiseData;
+            this.meshData = meshData;
+            this.colorMap = colorMap;
+        }
+
+        public static implicit operator MapData3D(MapData2D mapData2D) {
+            return new MapData3D(mapData2D.dimensions, mapData2D.noiseData, mapData2D.meshData, mapData2D.colorMap);
+        }
     }
+
 }
