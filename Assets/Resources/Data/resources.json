@@ -1,0 +1,28 @@
+[
+  {
+    "name": "wood",
+    "resourceCount": 200,
+    "maxNoiseBound": 0.4,
+    "minNoiseBound": 0.3
+  },
+
+  {
+    "name": "stone",
+    "resourceCount": 200,
+    "maxNoiseBound": 0.4,
+    "minNoiseBound": 0.3
+  },
+
+  {
+    "name": "gold",
+    "resourceCount": 200,
+    "maxNoiseBound": 0.4,
+    "minNoiseBound": 0.3
+  },
+  {
+    "name": "mana",
+    "resourceCount": 200,
+    "maxNoiseBound": 0.4,
+    "minNoiseBound": 0.3
+  }
+]
