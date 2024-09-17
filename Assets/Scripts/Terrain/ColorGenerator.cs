@@ -27,13 +27,13 @@ public static class ColorGenerator {
         return colorMap;
     }
 
-    public static Color[] GenerateForTerrainMap(int dimensions, float[,] map, MapBuilder.TerrainFeature[] features) {
+    public static Color[] GenerateForTerrainMap(int dimensions, float[,] map, Region.TerrainType[] terrainTypes) {
         Color[] colorMap = new Color[dimensions * dimensions];
         for (int y = 0; y < dimensions; y++) {
             for (int x = 0; x < dimensions; x++) {
-                foreach (MapBuilder.TerrainFeature feature in features) {
-                    if (map[x, y] <= feature.heightThreshold) {
-                        colorMap[y * dimensions + x] = feature.colour;
+                foreach (Region.TerrainType terrainType in terrainTypes) {
+                    if (map[x, y] <= terrainType.heightMax) {
+                        colorMap[y * dimensions + x] = terrainType.colour;
                         break;
                     }
                 }
@@ -43,13 +43,13 @@ public static class ColorGenerator {
         return colorMap;
     }
 
-    public static Color[] GenerateForTerrainMap(int dimensions, float[,,] map, MapBuilder.TerrainFeature[] features) {
+    public static Color[] GenerateForTerrainMap(int dimensions, float[,,] map, Region.TerrainType[] features) {
         Color[] colorMap = new Color[dimensions * dimensions * dimensions];
         for (int y = 0; y < dimensions; y++) {
             for (int x = 0; x < dimensions; x++) {
                 for (int z = 0; z < dimensions; z++) {
-                    foreach (MapBuilder.TerrainFeature feature in features) {
-                        if (map[x, y, z] <= feature.heightThreshold) {
+                    foreach (Region.TerrainType feature in features) {
+                        if (map[x, y, z] <= feature.heightMax) {
                             colorMap[(y + z * dimensions) * dimensions + x] = feature.colour;
                             break;
                         }
