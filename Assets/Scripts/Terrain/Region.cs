@@ -4,13 +4,15 @@ using static MapBuilder;
 using static NoiseGenerator;
 
 public class Region {
+    public RegionType regionType;
     public GameObject regionObject;
     public MapData3D mapData;
     public TerrainType[] terrainTypes;
     public Vector3 position;
 
-    public Region(MapData3D mapData, Vector3 inputCoord, Transform parent, Material material) {
+    public Region(RegionType regionType, MapData3D mapData, Vector3 inputCoord, Transform parent, Material material) {
         this.mapData = mapData;
+        this.regionType = regionType;
         position = inputCoord;
 
         GenerateRegionObject(parent, material);
@@ -51,39 +53,40 @@ public class Region {
 
     private void PopulateRegion() {
         Vector2[] seedPoints = null;
-        NoiseData2D noiseMap = mapData.noiseData;
-        Dictionary<string, (int minHeightIndex, int maxHeightIndex)> terrainRangeLimits = new Dictionary<string, (int minHeightIndex, int maxHeightIndex)>();
+        NoiseData2D noiseData = mapData.noiseData;
 
-        for (int x = 0; x < mapData.dimensions; x++) {
-            for (int y = 0; y < mapData.dimensions; y++) {
-                foreach(TerrainType terrain in terrainTypes) {
-                    if (terrain.heightMax > noiseMap.map[x, y] && terrain.heightMin < noiseMap.map[x, y]) {
+        //GenerateSeedPoints(noiseData);
+        //Worley(seedPoints, noiseData);
+    }
 
-                    }
-                    // if both are filled (both max and min) then calculate median index
-                    // Add to seed points
-                }
+    private Vector2[] GenerateSeedPoints(NoiseData2D noiseData) {
+        Vector2[] output = null;
+        Dictionary<string, List<Vector2>> rawTerrainTypes = new Dictionary<string, List<Vector2>>();
 
+        for (int x = 0; x < noiseData.dimensions; x++) {
+            for (int y = 0; y < noiseData.dimensions; y++) {
             }
         }
 
-        //Worley(map, seedPoints)
+        return output;
     }
 
-    [System.Serializable]
-    public struct TerrainType {
-        public string name;
-        public float heightMax;
-        public float heightMin;
-        public Color colour;
+    private void FloodFill(NoiseData2D noiseData2D) {
+        Stack<Vector2> stack = new Stack<Vector2>();
+        bool[,] visited = new bool[mapData.dimensions, mapData.dimensions];
+        float[,] noiseMap = noiseData2D.map;
 
-        public Resource[] resources;
-    }
+        int x = Random.Range(noiseData2D.dimensions, noiseData2D.dimensions);
+        int y = Random.Range(noiseData2D.dimensions, noiseData2D.dimensions);
+        Vector2 seed = new Vector2(x, y);
 
-    [System.Serializable]
-    public struct Resource {
-        public string name;
-        
+        stack.Push(seed);
+        visited[x, y] = true;
+
+        while(stack.Count > 0) {
+            Vector2 seedPoint = stack.Pop();
+
+            
+        }
     }
 }
-

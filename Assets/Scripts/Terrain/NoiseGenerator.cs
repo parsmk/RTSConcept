@@ -5,8 +5,6 @@ public static class NoiseGenerator {
     public enum NoiseLocalInterpolateMode { SmoothStep, Fade };
     public enum NoiseMode { UnityPerlin, CustomPerlin, Simplex, Worley };
     
-    //TODO IsFractal? Bool
-
     public struct NoiseData2D {
         public int dimensions;
         public float localMax;
@@ -55,9 +53,6 @@ public static class NoiseGenerator {
         }
     }
 
-    // TODO public static NoiseData3D GenerateNoise() GENERIC GENERATENOISE FUNCTION 
-
-    // TODO replace current GenerateNoise() with FractalNoise()
     public static NoiseData2D GenerateNoise(
             int seed,
             float scale,
@@ -128,7 +123,6 @@ public static class NoiseGenerator {
         return new NoiseData2D(dimensions, maxNoiseHeight, minNoiseHeight, map);
     }
 
-    // TODO replace current GenerateNoise() with FractalNoise()
     public static NoiseData3D GenerateNoise(
         int seed,
         float scale,
@@ -363,7 +357,6 @@ public static class NoiseGenerator {
         return Interpolate(interpolateMode, interpolatedCloseFace, interpolatedFarFace, smoothDeltaZ);
     }
 
-    //TODO Implement SimplexNoise2D
     private static float Simplex(
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode,
@@ -372,7 +365,6 @@ public static class NoiseGenerator {
         return 0f;
     }
 
-    //TODO Implement SimplexNoise3D
     private static float Simplex(
             NoiseInterpolateMode interpolateMode,
             NoiseLocalInterpolateMode localInterpolateMode,
@@ -381,9 +373,47 @@ public static class NoiseGenerator {
         return 0f;
     }
 
-    //TODO Implement Worley Noise
-    public static float Worley(Vector2[] inputPoints, float x, float y) {
-        float output = 0f;
+    public static float[,] Worley(Vector2[] seedPoints, NoiseData2D noiseData2D) {
+        float[,] output = new float[noiseData2D.dimensions, noiseData2D.dimensions];
+
+        for (int x = 0; x < noiseData2D.dimensions; x++) {
+            for (int y = 0; y < noiseData2D.dimensions; y++) {
+                Vector2 currentPoint = new Vector2(x, y);
+                float minDist = float.MaxValue;
+
+                foreach (Vector2 seedPoint in seedPoints) {
+                    float dist = Vector2.Distance(currentPoint, seedPoint);
+
+                    if (dist < minDist) { minDist = dist; }
+                }
+
+                output[x, y] = minDist;
+            }
+        }
+
+        return output;
+    }
+
+    public static float[,,] Worley(Vector3[] seedPoints, NoiseData3D noiseData2D) {
+        float[,,] output = new float[noiseData2D.dimensions, noiseData2D.dimensions, noiseData2D.dimensions];
+
+        for (int x = 0; x < noiseData2D.dimensions; x++) {
+            for (int y = 0; y < noiseData2D.dimensions; y++) {
+                for (int z = 0; z < noiseData2D.dimensions; z++) {
+                    Vector3 currentPoint = new Vector3(x, y, z);
+                    float minDist = float.MaxValue;
+
+                    foreach (Vector2 seedPoint in seedPoints) {
+                        float dist = Vector3.Distance(currentPoint, seedPoint);
+
+                        if (dist < minDist) { minDist = dist; }
+                    }
+
+                    output[x, y, z] = minDist;
+
+                }
+            }
+        }
 
         return output;
     }

@@ -1,0 +1,31 @@
+<regionTypes>
+  <regionType name="standard">
+    <terrainTypes>
+      <terrainType name="ocean">
+        <minHeight>0</minHeight>
+        <maxHeight>0.3</maxHeight>
+        <color r="0" g="30" b="160" />
+      </terrainType>
+      <terrainType name="beach">
+        <minHeight>0.3</minHeight>
+        <maxHeight>0.375</maxHeight>
+        <color r="185" g="160" b="70" />
+      </terrainType>
+      <terrainType name="grassland">
+        <minHeight>0.375</minHeight>
+        <maxHeight>0.5</maxHeight>
+        <color r="39" g="130" b="40" />
+      </terrainType>
+      <terrainType name="mountain">
+        <minHeight>0.5</minHeight>
+        <maxHeight>0.8</maxHeight>
+        <color r="85" g="40" b="40" />
+      </terrainType>
+      <terrainType name="mountainTop">
+        <minHeight>0.8</minHeight>
+        <maxHeight>1</maxHeight>
+        <color r="255" g="255" b="255" />
+      </terrainType>
+    </terrainTypes>
+  </regionType>
+</regionTypes>
