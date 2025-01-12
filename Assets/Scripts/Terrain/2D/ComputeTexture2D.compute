@@ -56,7 +56,10 @@ float4 GenerateTerrainMap(int x, int y) {
 //==============================================
 
 [numthreads(16,16,1)]
-void ComputeTexture2D (uint3 id : SV_DispatchThreadID) {    
+void ComputeTexture2D(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= (uint) dimensions || id.y >= (uint) dimensions)
+        return;
+    
     if (textureMode == TEXTUREMODE_TERRAIN) {
         result[id.xy] = GenerateTerrainMap(id.x, id.y);
     } else {

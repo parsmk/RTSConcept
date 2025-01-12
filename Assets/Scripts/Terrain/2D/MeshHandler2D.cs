@@ -52,7 +52,7 @@ public class MeshHandler2D : MonoBehaviour {
         computeMesh2D.SetConstantBuffer("meshData", meshBuffer, 0, MeshBuffer.size);
 
         // Dispatch
-        int packets = dimensions / 16;
+        int packets = dimensions / 8;
         computeMesh2D.Dispatch(kernelID, packets, packets, 1);
 
         // Retrieve Data

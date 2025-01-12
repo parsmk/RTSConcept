@@ -118,7 +118,7 @@ public class TextureHandler2D : MonoBehaviour {
         computeTexture2D.SetBuffer(kernelID, "map", mapBuffer);
         computeTexture2D.SetConstantBuffer("textureData", textureBuffer, 0, TextureBuffer.size);
 
-        int packets = dimensions / 16;
+        int packets = dimensions / 8;
         computeTexture2D.Dispatch(kernelID, packets, packets, 1);
 
         Texture2D output = new Texture2D(dimensions, dimensions, TextureFormat.RGBAHalf, false);

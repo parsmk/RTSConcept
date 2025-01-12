@@ -7,6 +7,12 @@ public class ResourceHandler2D {
 
     public void GenerateResources2D(int dimensions, float[] map, TerrainType[] terrainTypes) {
         Vector2[] seedPoints = GenerateWorleySeedPoints(dimensions, map, terrainTypes).ToArray();
+
+        foreach (Vector2 seedPoint in  seedPoints) { 
+            GameObject temp = new GameObject($"Seedpoint {seedPoint}");
+            temp.transform.position = new Vector3(seedPoint.x, 50, seedPoint.y);
+        }        
+
         //tempWorley = Worley(seedPoints, noiseData);
     }
 

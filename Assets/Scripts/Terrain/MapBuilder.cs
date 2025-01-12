@@ -42,7 +42,7 @@ public class MapBuilder : MonoBehaviour {
             RegionType regionType = GameManager.GetRegionType("standard");
 
             Mesh mesh = meshHandler2D.GenerateMesh(entry.noise.dimensions, meshHandler2D.heightModifier, entry.noise.map);
-            Texture2D texture = textureHandler2D.ComputeTexture(regionType.terrainTypes, entry.noise.dimensions, entry.noise.map);
+            Texture2D texture = textureHandler2D.ComputeTexture(Color.white, entry.noise.dimensions, entry.noise.map);
 
             GameObject region = GenerateRegionObject(entry.key, texture, mesh);
             regions.Add(entry.key, new Region(region, regionType, mesh, texture));
@@ -52,7 +52,7 @@ public class MapBuilder : MonoBehaviour {
     }
 
     private GameObject GenerateRegionObject(Vector3 position, Texture texture, Mesh mesh) {
-        GameObject region = new GameObject($"Region({position.x}, {position.y}, { position.z }");
+        GameObject region = new GameObject($"Region({position.x}, {position.y}, { position.z })");
 
         region.isStatic = true;
         region.transform.parent = mapWrapper.transform;
@@ -69,6 +69,7 @@ public class MapBuilder : MonoBehaviour {
         regionMeshRenderer.sharedMaterial = regionMaterial;
 
         // Assign Texture and Mesh
+        texture.wrapMode = TextureWrapMode.Clamp;
         regionMeshRenderer.sharedMaterial.mainTexture = texture;
         regionMeshFilter.sharedMesh = regionMeshCollider.sharedMesh = mesh;
 

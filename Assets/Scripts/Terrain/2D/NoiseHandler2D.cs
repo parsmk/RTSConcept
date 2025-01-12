@@ -88,7 +88,7 @@ public class NoiseHandler2D : MonoBehaviour {
     public ComputeShader computeNoise2D;
 
     [Header("NoiseSettings")]
-    public readonly int noiseDimensions = 256;
+    public readonly int noiseDimensions = 128;
     public NoiseMode2D noiseMode;
     public NoiseInterpolateMode2D interpolateMode;
     public Vector2 mapOffset = Vector2.zero;
@@ -150,7 +150,7 @@ public class NoiseHandler2D : MonoBehaviour {
         computeNoise2D.SetBuffer(kernelID, "seedPoints", seedBuffer);
 
         // Dispatch
-        int packets = noiseDimensions / 16;
+        int packets = noiseDimensions / 8;
         computeNoise2D.Dispatch(kernelID, packets, packets, 1);
 
         // Retrieve data
@@ -229,7 +229,7 @@ public class NoiseHandler2D : MonoBehaviour {
         computeNoise2D.SetBuffer(kernelID, "oldMap", oldMapBuffer);
 
         // Dispatch
-        int packets = noiseDimensions / 16;
+        int packets = noiseDimensions / 8;
         computeNoise2D.Dispatch(kernelID, packets, packets, 1);
 
         // Retrieve Data
