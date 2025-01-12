@@ -1,0 +1,110 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5658928053792209618
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6165014499236055366}
+  - component: {fileID: 8427312105924048787}
+  - component: {fileID: 4980072617394943860}
+  - component: {fileID: 1836831849814150982}
+  - component: {fileID: 4853023748328368746}
+  m_Layer: 0
+  m_Name: MapGenerator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6165014499236055366
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5658928053792209618}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -154.65022, y: -21.346762, z: -143.41565}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8427312105924048787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5658928053792209618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92021770eaa76874296f508419f1df2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  noiseHandler2D: {fileID: 4980072617394943860}
+  meshHandler2D: {fileID: 1836831849814150982}
+  textureHandler2D: {fileID: 4853023748328368746}
+  mapType: 1
+  mapWrapper: {fileID: 0}
+  mapDimensions: 2
+  mapDepth: 1
+--- !u!114 &4980072617394943860
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5658928053792209618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 252c006148d638547abe271831e6ca0c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeNoise2D: {fileID: 7200000, guid: d9b4bddb13093124aa73a46c33f82a88, type: 3}
+  noiseMode: 0
+  interpolateMode: 0
+  mapOffset: {x: 0, y: 0}
+  perlinSettings:
+    tSmoothMode: 1
+  fractalSettings:
+    seed: 1
+    scale: 100
+    persistence: 0.5
+    lacunarity: 2
+    octaves: 4
+--- !u!114 &1836831849814150982
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5658928053792209618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6d3481c34b1c2e0418779e9ff8d88209, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeMesh2D: {fileID: 7200000, guid: 27c376633cf99ab439ccef809fc3b1ad, type: 3}
+  heightModifier: 50
+--- !u!114 &4853023748328368746
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5658928053792209618}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fd3dd74ccb237b428e9708b22ba8a77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeTexture2D: {fileID: 7200000, guid: 5e9a9a3f8a778f24c8294779dd4ca093, type: 3}
+  textureMode: 0
+  material: {fileID: 2100000, guid: d4ce0c9aa97baba4aa3d38e79b151f3e, type: 2}
+  color: {r: 1, g: 1, b: 1, a: 0}

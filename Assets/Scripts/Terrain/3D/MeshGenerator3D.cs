@@ -1,27 +1,9 @@
+using System;
 using UnityEngine;
 
-public static class MeshGenerator {
-    //2D Space
-    public static MeshData GenerateMeshData(float[,] map, int dimensions, float heightModifier, AnimationCurve animationCurve) {
-        MeshData meshData = new MeshData(dimensions, dimensions);
-
-        for (int y = 0, vertexIndex = 0; y < dimensions; y++) {
-            for (int x = 0; x < dimensions; x++, vertexIndex++) {
-                meshData.vertexArray[vertexIndex] = new Vector3(x, animationCurve.Evaluate(map[x, y]) * heightModifier, y);
-                meshData.uvRays[vertexIndex] = new Vector2(x / (float)dimensions, y / (float)dimensions);
-
-                if (x < dimensions - 1 && y < dimensions - 1) {
-                    meshData.AddTriangle(vertexIndex + dimensions, vertexIndex + 1, vertexIndex);
-                    meshData.AddTriangle(vertexIndex + dimensions, vertexIndex + dimensions + 1, vertexIndex + 1);
-                }
-            }
-        }
-
-        return meshData;
-    }
-
+public static class MeshGenerator3D {
     //3D Space
-    public static MeshData GenerateMeshData(float[,,] map, int dimensions, float threshhold, float textureDetail, int meshDetail) {
+    public static MeshData GenerateMeshData(float[,,] map, int dimensions, float threshhold, int meshDetail) {
         //Marching Cubes Algorithm
 
         MeshData meshData = new MeshData(dimensions, dimensions, dimensions);
@@ -103,7 +85,7 @@ public static class MeshGenerator {
                         int triC = MarchingCubesConstants.triangulationTable[cubeIndex][i + 2];
 
                         // Calculate UVVertex
-                        Vector2 uv = new Vector2(outputVertices[vertIndex].x / dimensions, outputVertices[vertIndex].z / dimensions) * textureDetail;
+                        Vector2 uv = new Vector2(outputVertices[vertIndex].x / dimensions, outputVertices[vertIndex].z / dimensions);
 
                         // newVertex Index
                         int vertIndexA = vertIndex;
@@ -170,6 +152,13 @@ public static class MeshGenerator {
             vertexArray = new Vector3[meshWidth * meshHeight * meshDepth];
             uvRays = new Vector2[meshWidth * meshHeight * meshDepth];
             triangleArray = new int[(meshWidth - 1) * (meshHeight - 1) * (meshDepth - 1) * 6];
+            triangleIndex = 0;
+        }
+
+        public MeshData(Vector3[] vertexArray, Vector2[]uvRays, int[] triangleArray) {
+            this.vertexArray = vertexArray;
+            this.uvRays = uvRays;
+            this.triangleArray = triangleArray;
             triangleIndex = 0;
         }
 

@@ -1,0 +1,285 @@
+#pragma kernel ComputeNoise
+#pragma kernel NormalizeNoise
+
+#define NOISEMODE_PERLIN 0
+#define NOISEMODE_SIMPLEX 1
+#define NOISEMODE_WORLEY 2
+
+#define TSMOOTHMODE_FADE 0
+#define TSMOOTHMODE_SMOOTHSTEP 1
+
+#define NOISEINTERPOLATE_LERP 0
+#define NOISEINTERPOLATE_HERMITE 1
+
+const float FLOAT_MAX = 3.402823466e+38;
+const float FLOAT_MIN = -3.402823466e+38;
+static const int2 constantVectors[4] = {
+    int2(1, 1), int2(-1, 1), int2(1, -1), int2(-1, -1)
+};
+
+//==============================================
+//                   Buffers
+//==============================================
+
+RWStructuredBuffer<float> result;
+
+cbuffer noiseData {
+    float2 offset;
+    int dimensions;
+    int noiseMode;
+    int interpolateMode;
+};
+StructuredBuffer<int> permutationTable;
+
+cbuffer perlinData {
+    int tSmoothMode;
+};
+
+cbuffer worleyData {
+    int seedPointCount;
+};
+StructuredBuffer<float2> seedPoints;
+
+cbuffer fractalData {
+    int octaves;
+    float scale;
+    float persistence;
+    float lacunarity;
+};
+StructuredBuffer<float2> octaveOffsets;
+
+cbuffer normalizeData {
+    float globalMin, globalMax;
+};
+StructuredBuffer<float> oldMap;
+
+//==============================================
+//              Helper Functions
+//==============================================
+
+int ChoosePermutation(uint x, uint y) {
+    return permutationTable[(permutationTable[x % dimensions] + y) % dimensions];
+}
+
+//==============================================
+//                 T Functions
+//==============================================
+
+float Fade(float t) {
+    return ((6.0 * t - 15.0) * t + 10.0) * t * t * t;
+}
+
+float FadePrime(float t) {
+    return ((30 * t - 60) * t + 10) * t * t;
+}
+
+float SmoothStep(float t) {
+    return t * t * (3.0 - 2.0 * t);
+}
+
+float SmoothStepPrime(float t) {
+    return (6 - 6 * t) * t;
+}
+
+float TFunction(float t) {
+    if (tSmoothMode == TSMOOTHMODE_SMOOTHSTEP)
+        return SmoothStep(t);
+    else 
+        return Fade(t);
+}
+
+float TPrimeFunction(float t) {
+    if (tSmoothMode == TSMOOTHMODE_SMOOTHSTEP)
+        return SmoothStepPrime(t); 
+    else
+        return FadePrime(t);
+}
+
+float TInverse(float inputT) {
+    float epsilon = 1e-6;
+    float t = inputT;
+    
+    for (int i = 0; i < 10; i++) {
+        float fT = TFunction(t);
+        float fPrimeT = TPrimeFunction(t);
+        
+        if (abs(fT) < epsilon)
+            break;
+        
+        t = t - fT / fPrimeT;
+        
+        t = max(0, min(1, t));
+    }
+    
+    return t;
+}
+
+//==============================================
+//          Interpolation Functions
+//==============================================
+
+float Hermite(float a, float b, float t) {
+    return ((2.0 * t - 3.0) * t * t + 1.0) * a + ((-2.0 * t + 3.0) * t * t) * b;
+}
+
+float HermitePrime(float a, float b, float t) {
+    return 6 * t * (a - b) * (t - 1);
+}
+
+float Lerp(float a, float b, float t) {
+    return a + (b - a) * t;
+}
+
+float InverseLerp(float a, float b, float t) {
+    return (t - a) / (b - a);
+}
+
+float Interpolate(float a, float b, float t) {
+    if (interpolateMode == NOISEINTERPOLATE_HERMITE)
+        return Hermite(a, b, t);
+    else
+        return Lerp(a, b, t);
+}
+
+float InterpolatePrime(float a, float b, float t) {
+    if (interpolateMode == NOISEINTERPOLATE_HERMITE)
+        return HermitePrime(a, b, t); 
+    else
+        return InverseLerp(a, b, t);
+}
+
+float NewtonRaphson(float a, float b, float inputT) {
+    float epsilon = 1e-6;
+    float t = inputT;
+    
+    for (int i = 0; i < 10; i++) {
+        float fT = Interpolate(a, b, t);
+        float fPrimeT = InterpolatePrime(a, b, t);
+        
+        if (abs(t) < epsilon)
+            break;
+
+        t = max(0, min(1, t));
+    }
+    
+    return t;
+}
+
+float InverseInterpolate(float a, float b, float inputT) {
+    float t = TInverse(inputT);
+    
+    if (interpolateMode == NOISEINTERPOLATE_HERMITE)
+        return NewtonRaphson(a, b, inputT); 
+    else
+        return InverseLerp(a, b, inputT);    
+}
+
+//==============================================
+//                  Perlin
+//==============================================
+
+float Perlin(float x, float y) {    
+    int uCubeX = (int) floor(x) & 255;
+    int uCubeY = (int) floor(y) & 255;
+    
+    float deltaX = x - floor(x);
+    float deltaY = y - floor(y);
+    
+    float2 vector00 = float2(deltaX, deltaY);
+    float2 vector01 = float2(deltaX, deltaY - 1);
+    float2 vector10 = float2(deltaX - 1, deltaY);
+    float2 vector11 = float2(deltaX - 1, deltaY - 1);
+    
+    int value00 = ChoosePermutation(uCubeX, uCubeY);
+    int value01 = ChoosePermutation(uCubeX, uCubeY + 1);
+    int value10 = ChoosePermutation(uCubeX + 1, uCubeY);
+    int value11 = ChoosePermutation(uCubeX + 1, uCubeY + 1);
+    
+    float dot00 = dot(vector00, constantVectors[value00 & 3]);
+    float dot01 = dot(vector01, constantVectors[value01 & 3]);
+    float dot10 = dot(vector10, constantVectors[value10 & 3]);
+    float dot11 = dot(vector11, constantVectors[value11 & 3]);
+    
+    float smoothX = TFunction(deltaX);
+    float smoothY = TFunction(deltaY);
+    
+    float BEInterpolant = Interpolate(dot00, dot10, smoothX);
+    float TEInterpolant = Interpolate(dot01, dot11, smoothX);
+    
+    return Interpolate(BEInterpolant, TEInterpolant, smoothY);
+}
+
+//==============================================
+//                  Worley
+//==============================================
+
+float Worley(float x, float y) {
+    float2 currentPoint = float2(x, y);
+    float minDist = FLOAT_MAX;
+    
+    for (int i = 0; i < seedPointCount; i++) {
+        float dist = distance(currentPoint, seedPoints[i]);
+        minDist = min(dist, minDist);
+    }
+
+    return minDist;
+}
+
+//==============================================
+//                  Simplex
+//==============================================
+
+float Simplex(float x, float y) {
+    return 0.0;
+}
+
+//==============================================
+//                  Fractal
+//==============================================
+
+float Noise(float x, float y) {    
+    if (noiseMode == NOISEMODE_SIMPLEX)
+        return Simplex(x, y);
+    else if (noiseMode == NOISEMODE_WORLEY)
+        return Worley(x, y);
+    else 
+        return Perlin(x, y);
+}
+
+float Fractal(int x, int y) {
+    float amplitude = 1.0;
+    float frequency = 1.0;
+    float noiseHeight = 0.0;
+    
+    for (int i = 0; i < octaves; i++) {
+        float sampleX = frequency * (x + octaveOffsets[i].x + offset.x) / scale;
+        float sampleY = frequency * (y + octaveOffsets[i].y + offset.y) / scale;
+        
+        noiseHeight += amplitude * Noise(sampleX, sampleY);
+        
+        amplitude *= persistence;
+        frequency *= lacunarity;
+    }
+
+    return noiseHeight;
+}
+
+//==============================================
+//                  Kernels
+//==============================================
+
+[numthreads(16, 16, 1)]
+void NormalizeNoise(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= (uint) dimensions || id.y >= (uint) dimensions)
+        return;
+    
+    result[id.y * dimensions + id.x] = InverseInterpolate(globalMin, globalMax, oldMap[id.y * dimensions + id.x]);
+}
+
+[numthreads(16, 16, 1)]
+void ComputeNoise(uint3 id : SV_DispatchThreadID) {    
+    if (id.x >= (uint) dimensions || id.y >= (uint) dimensions)
+        return;
+    
+    result[id.y * dimensions + id.x] = Fractal(id.x, id.y);
+}

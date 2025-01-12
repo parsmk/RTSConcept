@@ -1,0 +1,65 @@
+#pragma kernel ComputeTexture2D
+
+#define TEXTUREMODE_COLOR 0
+#define TEXTUREMODE_TERRAIN 1
+
+struct TerrainType {
+    float4 color;
+    float maxHeight;
+};
+
+//==============================================
+//                   Buffers
+//==============================================
+
+RWTexture2D<float4> result;
+StructuredBuffer<float> map;
+
+cbuffer textureData {
+    int textureMode;
+    int dimensions;
+};
+
+cbuffer colorData {    
+    float4 inputColor;
+};
+
+cbuffer terrainData {
+    int terrainCount;
+};
+StructuredBuffer<TerrainType> terrainTypes;
+
+//==============================================
+//            Texture Generators
+//==============================================
+
+float4 GenerateColorMap(int x, int y) {
+    int index = y * dimensions + x;
+    
+    return float4(map[index] * inputColor.x, map[index] * inputColor.y, map[index] * inputColor.z, 1);
+}
+
+float4 GenerateTerrainMap(int x, int y) {
+    int index = y * dimensions + x;
+    
+    for (int i = 0; i < terrainCount; i++) {
+        if (map[index] <= terrainTypes[i].maxHeight) {
+            return terrainTypes[i].color;
+        }
+    }
+    
+    return float4(0, 0, 0, 0);
+}
+
+//==============================================
+//                  Kernels
+//==============================================
+
+[numthreads(16,16,1)]
+void ComputeTexture2D (uint3 id : SV_DispatchThreadID) {    
+    if (textureMode == TEXTUREMODE_TERRAIN) {
+        result[id.xy] = GenerateTerrainMap(id.x, id.y);
+    } else {
+        result[id.xy] = GenerateColorMap(id.x, id.y);
+    }
+}

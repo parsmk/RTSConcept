@@ -1,0 +1,33 @@
+#pragma kernel ComputeMesh
+
+RWStructuredBuffer<int> triangles;
+RWStructuredBuffer<float3> vertexArray;
+RWStructuredBuffer<float2> uvRays;
+StructuredBuffer<float> map;
+
+cbuffer meshData {
+    int dimensions;
+    int mapHeight;
+};
+
+[numthreads(16, 16, 1)]
+void ComputeMesh(uint3 id : SV_DispatchThreadID) {
+    if (id.x >= (uint) dimensions || id.y >= (uint) dimensions)
+        return;
+    
+    int vertIndex = id.y * dimensions + id.x;
+    int triangleIndex = (id.y * (dimensions - 1) + id.x) * 6;
+    
+    vertexArray[vertIndex] = float3(id.x, map[vertIndex] * mapHeight, id.y);
+    uvRays[vertIndex] = float2(id.x / (float) dimensions, id.y / (float) dimensions);
+    
+    if (id.x >= (uint) dimensions - 1 || id.y >= (uint) dimensions - 1)
+        return;
+    
+    triangles[triangleIndex + 0] = vertIndex + dimensions;
+    triangles[triangleIndex + 1] = vertIndex + 1;
+    triangles[triangleIndex + 2] = vertIndex;
+    triangles[triangleIndex + 3] = vertIndex + dimensions;
+    triangles[triangleIndex + 4] = vertIndex + dimensions + 1;
+    triangles[triangleIndex + 5] = vertIndex + 1;
+}

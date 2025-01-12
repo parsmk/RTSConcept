@@ -1,28 +1,32 @@
-﻿using CsvHelper;
-using System.IO;
+﻿using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
 public static class Export {
     public static async Task Export1DArray<T>(string fileName, T[] map, int dimensions) {
         try {
-            string directory = Path.Combine(Directory.GetCurrentDirectory(), "CSVs/1D", fileName + ".csv");
+            string file = Path.Combine(Directory.GetCurrentDirectory(), "CSVs/1D", fileName + ".csv");
 
-            if (!Directory.Exists(directory))
-                Debug.Log("Creating CSV for: " + directory);
+            if (!File.Exists(file))
+                Debug.Log("Creating CSV for: " + file);
             else
-                Debug.Log("Updating CSV for: " + directory);
+                Debug.Log("Updating CSV for: " + file);
 
-            using (StreamWriter writer = new StreamWriter(directory))
-            using (CsvWriter csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture)) {
+            StringBuilder sb = new StringBuilder();
+            using (StreamWriter writer = new StreamWriter(file)) {
+                string[] output = new string[dimensions];
+
                 for (int i = 0; i < dimensions; i++) {
-                    csv.WriteField($"{map[i]}");
-                    await csv.NextRecordAsync();
+                    output[i] = map[i].ToString();
                 }
 
+                sb.AppendLine(string.Join(',', output));
+                await writer.WriteAsync(sb.ToString());
+                sb.Clear();
             }
 
-            Debug.Log("Done CSV for: " + directory);
+            Debug.Log("Done CSV for: " + file);
 
         } catch (System.Exception e) {
             Debug.Log("Error exporting!\n" + e.Message);
@@ -31,54 +35,58 @@ public static class Export {
 
     public static async Task Export2DArray<T>(string fileName, T[,] map, int dimensions) {
         try {
-            string directory = Path.Combine(Directory.GetCurrentDirectory(), "CSVs/2D", fileName + ".csv");
+            string file = Path.Combine(Directory.GetCurrentDirectory(), "CSVs/2D", fileName + ".csv");
 
-            if (!Directory.Exists(directory))
-                Debug.Log("Creating CSV for: " + directory);
+            if (!File.Exists(file))
+                Debug.Log("Creating CSV for: " + file);
             else
-                Debug.Log("Updating CSV for: " + directory);
+                Debug.Log("Updating CSV for: " + file);
 
-            using (StreamWriter writer = new StreamWriter(directory))
-            using (CsvWriter csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture)) {
+            StringBuilder sb = new StringBuilder();
+            using (StreamWriter writer = new StreamWriter(file)) {
                 for (int y = 0; y < dimensions; y++) {
+                    string[] row = new string[dimensions];
                     for (int x = 0; x < dimensions; x++) {
-                        csv.WriteField($"{map[x, y]}");
+                        row[x] = map[x, y].ToString();
                     }
-                    await csv.NextRecordAsync();
+
+                    sb.AppendLine(string.Join(",", row));
                 }
 
+                await writer.WriteAsync(sb.ToString());
             }
 
-            Debug.Log("Done CSV for: " + directory);
+            Debug.Log("Done CSV for: " + file);
 
         } catch (System.Exception e) {
             Debug.Log("Error exporting!\n" + e.Message);
         }
-
     }
 
     public static async Task Export3DArray<T>(string fileName, T[,,] map, int dimensions) {
         try {
             for (int y = 0; y < dimensions; y++) {
-                string directory = Path.Combine(Directory.GetCurrentDirectory(), "CSVs/3D", fileName + "_map[y = " + y + "].csv");
+                string file = Path.Combine(Directory.GetCurrentDirectory(), "CSVs/3D", fileName + "_map[y = " + y + "].csv");
 
-                if (!Directory.Exists(directory))
-                    Debug.Log("Creating CSV for: " + directory);
+                if (!File.Exists(file))
+                    Debug.Log("Creating CSV for: " + file);
                 else
-                    Debug.Log("Updating CSV for: " + directory);
+                    Debug.Log("Updating CSV for: " + file);
 
-                using (StreamWriter writer = new StreamWriter(directory))
-                using (CsvWriter csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture)) {
+                StringBuilder sb = new StringBuilder();
+                using (StreamWriter writer = new StreamWriter(file)) {
                     for (int x = 0; x < dimensions; x++) {
+                        string[] row = new string[dimensions];
                         for (int z = 0; z < dimensions; z++) {
-                            csv.WriteField($"{map[x, y, z]}");
-
+                            row[z] = map[x, y, z].ToString();
                         }
-                        await csv.NextRecordAsync();
+                        sb.AppendLine(string.Join(',', row));
                     }
+
+                    await writer.WriteAsync(sb.ToString());
                 }
 
-                Debug.Log("Done CSV for: " + directory);
+                Debug.Log("Done CSV for: " + file);
             }
         } catch (System.Exception e) {
             Debug.Log("Error exporting!\n" + e.Message);

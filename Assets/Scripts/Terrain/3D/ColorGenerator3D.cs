@@ -1,19 +1,7 @@
 using UnityEngine;
-using static MapBuilder;
 
-public static class ColorGenerator {
+public static class ColorGenerator3D {
     public enum DrawMode { ColorMap, TerrainMap };
-
-    public static Color[] GenerateForColorMap(int dimensions, float[,] map, Color color) {
-        Color[] colorMap = new Color[dimensions * dimensions];
-        for (int y = 0; y < dimensions; y++) {
-            for (int x = 0; x < dimensions; x++) {
-                colorMap[y * dimensions + x] = new Color(map[x, y] * color.r, map[x, y] * color.g, map[x, y] * color.b);
-            }
-        }
-
-        return colorMap;
-    }
 
     public static Color[] GenerateForColorMap(int dimensions, float[,,] map, Color color) {
         Color[] colorMap = new Color[dimensions * dimensions];
@@ -21,22 +9,6 @@ public static class ColorGenerator {
             for (int x = 0; x < dimensions; x++) {
                 for (int z = 0; z < dimensions; z++) {
                     colorMap[(y + z * dimensions) * dimensions + x] = new Color(map[x, y, z] * color.r, map[x, y, z] * color.g, map[x, y, z] * color.b);
-                }
-            }
-        }
-
-        return colorMap;
-    }
-
-    public static Color[] GenerateForTerrainMap(int dimensions, float[,] map, TerrainType[] terrainTypes) {
-        Color[] colorMap = new Color[dimensions * dimensions];
-        for (int y = 0; y < dimensions; y++) {
-            for (int x = 0; x < dimensions; x++) {
-                foreach (TerrainType terrainType in terrainTypes) {
-                    if (map[x, y] <= terrainType.maxHeight) {
-                        colorMap[y * dimensions + x] = terrainType.color;
-                        break;
-                    }
                 }
             }
         }
