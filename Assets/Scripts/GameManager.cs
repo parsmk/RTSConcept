@@ -6,8 +6,8 @@ public class GameManager : MonoBehaviour {
     [Header("Map Properties")]
     public MapBuilder mapBuilder;
 
-    private static Dictionary<string, ScriptableObject> scriptableObjects = new Dictionary<string, ScriptableObject>();
-    private Dictionary<Vector3Int, Region> regions = new Dictionary<Vector3Int, Region>();
+    private static Dictionary<string, ScriptableObject> scriptableObjects = new();
+    private Dictionary<Vector3Int, Region> regions = new();
 
     public void GenerateMap() {
         regions = mapBuilder.BuildMap2D();
@@ -24,7 +24,7 @@ public class GameManager : MonoBehaviour {
     }
 
     public void Test() {
-        //noiseHandler.GenerateNoise2D(NoiseHandler2D.NoiseMode2D.Perlin);
+        //noiseHandler.GenerateNoise(NoiseHandler2D.NoiseMode2D.Perlin);
         return;
     }
 
@@ -39,10 +39,11 @@ public class GameManager : MonoBehaviour {
 
         foreach(TerrainType terrainType in terrainTypes) { 
             if (!scriptableObjects.ContainsKey(terrainType.name))
-                scriptableObjects.Add(terrainType.name, terrainType); 
+                scriptableObjects.Add(terrainType.terrainTypeName, terrainType); 
         }
         scriptableObjects.Add(regionName, regionType);
 
         return (RegionType)scriptableObjects[regionName];
     }
+
 }

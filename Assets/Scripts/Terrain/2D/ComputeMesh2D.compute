@@ -19,7 +19,7 @@ void ComputeMesh(uint3 id : SV_DispatchThreadID) {
     int triangleIndex = (id.y * (dimensions - 1) + id.x) * 6;
     
     vertexArray[vertIndex] = float3(id.x, map[vertIndex] * mapHeight, id.y);
-    uvRays[vertIndex] = float2(id.x / (float) dimensions, id.y / (float) dimensions);
+    uvRays[vertIndex] = float2(id.x / (float) (dimensions - 1), id.y / (float) (dimensions - 1));
     
     if (id.x >= (uint) dimensions - 1 || id.y >= (uint) dimensions - 1)
         return;

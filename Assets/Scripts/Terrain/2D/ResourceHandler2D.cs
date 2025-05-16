@@ -2,82 +2,139 @@
 using System.Linq;
 using UnityEngine;
 
-public class ResourceHandler2D {
-    ComputeShader resourceHandler2D;
+public class ResourceHandler2D : MonoBehaviour {
+    public class LandMass2D {
+        public TerrainType terrainType;
+        public Vector2 minX, maxX;
+        public Vector2 minY, maxY;
+        public Vector2[] vertices;
+        public Vector2 seedPoint;
 
-    public void GenerateResources2D(int dimensions, float[] map, TerrainType[] terrainTypes) {
-        Vector2[] seedPoints = GenerateWorleySeedPoints(dimensions, map, terrainTypes).ToArray();
+        public LandMass2D(TerrainType terrainType, Vector2 minX, Vector2 maxX, Vector2 minY, Vector2 maxY, Vector2[] vertices) {
+            this.terrainType = terrainType;
+            this.minX = minX; this.maxX = maxX;
+            this.minY = minY; this.maxY = maxY;
+            this.vertices = vertices;
+        }
 
-        foreach (Vector2 seedPoint in  seedPoints) { 
-            GameObject temp = new GameObject($"Seedpoint {seedPoint}");
-            temp.transform.position = new Vector3(seedPoint.x, 50, seedPoint.y);
-        }        
+        public float GetExtent() {
+            float width = maxX.x - minX.x;
+            float height = maxY.x - minY.x;
 
-        //tempWorley = Worley(seedPoints, noiseData);
+            return width * width + height * height;
+        }
     }
 
-    private List<Vector2> GenerateWorleySeedPoints(int dimensions, float[] map, TerrainType[] terrainTypes) {
-        List<Vector2> output = new List<Vector2>();
-        Dictionary<string, List<Vector2>> rawTerrainTypes = new Dictionary<string, List<Vector2>>();
+    private static readonly Vector2[] neighborOffsets = {
+        new(-1, 1) , new(0, 1) , new(1, 1),
+        new(-1, 0) ,             new(1, 0),
+        new(-1, -1), new(0, -1), new(1, -1)
+    };
 
+    public ComputeShader computeResource2D;
+
+    //Temp
+    public List<LandMass2D> _landMasses;
+    public List<Vector2> seedPoints = new();
+    //
+
+    public List<LandMass2D> GenerateLandMasses(int dimensions, Vector2 offset, float[] map, TerrainType[] terrainTypes) {
         //Single Pass Classification
-        for (int x = 0; x < dimensions; x++) {
-            for (int y = 0; y < dimensions; y++) {
-                Vector2 currentPoint = new Vector2(x, y);
-                foreach (TerrainType terrainType in terrainTypes) {
-                    if (terrainType.minHeight < map[y * dimensions + x] && map[y * dimensions + x] < terrainType.maxHeight) {
-                        if (!rawTerrainTypes.TryAdd(terrainType.terrainTypeName, new List<Vector2> { currentPoint })) {
-                            rawTerrainTypes[terrainType.terrainTypeName].Add(currentPoint);
-                        }
-                    }
-                }
+        Dictionary<TerrainType, List<Vector2>> verticesPerTerrainType = SinglePassClassification(terrainTypes, map, dimensions);
+
+        //Extract LandMass and compute Max/Mins
+        List<LandMass2D> landMasses = new();
+        float[] mapDensity = new float[dimensions * dimensions];
+        float maxArea = float.MinValue, maxExtent = float.MinValue;
+
+        //Check how to expand by tuple
+        foreach (KeyValuePair<TerrainType, List<Vector2>> terrainType in verticesPerTerrainType) {
+            HashSet<Vector2> hashTT = new(terrainType.Value);
+            List<LandMass2D> landMassesOfTerrainType = ExtractLandMasses(terrainType.Key, hashTT, mapDensity, dimensions);
+
+            foreach (LandMass2D landMass in landMassesOfTerrainType) {
+                landMasses.Add(landMass);
+                maxArea = Mathf.Max(landMass.vertices.Length, maxArea);
+                maxExtent = Mathf.Max(landMass.GetExtent(), maxExtent);
             }
         }
 
-        //FloodFill and Centroid Calculation
-        foreach (List<Vector2> terrainType in rawTerrainTypes.Values) {
-            HashSet<Vector2> hashTT = new HashSet<Vector2>(terrainType);
-            List<List<Vector2>> landMassesOfTerrainType = FloodFill(hashTT, dimensions);
-            foreach (List<Vector2> landMass in landMassesOfTerrainType) {
-                output.Add(Centroid(landMass));
+        //Compute points
+        foreach(LandMass2D landMass in landMasses) {
+            _landMasses.Add(landMass);
+        }
+
+        return landMasses;
+    }
+
+    private Dictionary<TerrainType, List<Vector2>> SinglePassClassification(TerrainType[] terrainTypes, float[] map, int dimensions) {
+        Dictionary<TerrainType, List<Vector2>> output = new();
+
+        for (int x = 0; x < dimensions; x++) {
+            for (int y = 0; y < dimensions; y++) {
+                Vector2 currentVertex = new(x, y);
+                int currentIndex = TerrainUtils.Index2D(x, y, dimensions);
+
+                foreach (TerrainType terrainType in terrainTypes) {
+                    if (terrainType.minHeight < map[currentIndex] && map[currentIndex] < terrainType.maxHeight) {
+                        if (!output.TryAdd(terrainType, new List<Vector2> { currentVertex }))
+                            output[terrainType].Add(currentVertex);
+                    }
+                }
             }
         }
 
         return output;
     }
 
-    private List<List<Vector2>> FloodFill(HashSet<Vector2> terrainData, int dimensions) {
-        List<List<Vector2>> output = new List<List<Vector2>>();
-        Stack<Vector2> stack = new Stack<Vector2>();
-        bool[,] visited = new bool[dimensions, dimensions];
+    private List<LandMass2D> ExtractLandMasses(TerrainType terrainType, HashSet<Vector2> terrainData, float[] density, int dimensions) {
+        List<LandMass2D> output = new();
+        Stack<Vector2> stack = new();
+        bool[] visited = new bool[dimensions * dimensions];
 
         while (terrainData.Count > 0) {
-            List<Vector2> landMass = new List<Vector2>();
+            byte[] neighbors = new byte[dimensions * dimensions];
+            Vector2 minX, maxX, minY, maxY;
+            List<Vector2> vertices = new();
+            minX = minY = new Vector2(dimensions, dimensions);
+            maxX = maxY = new Vector2(0, 0);
+
             stack.Push(terrainData.First());
 
-            Vector2 currentVertex;
-            Vector2[] neighbouringVertices;
             while (stack.Count > 0) {
-                currentVertex = stack.Pop();
-                visited[(int)currentVertex.x, (int)currentVertex.y] = true;
+                Vector2 current = stack.Pop();
+                int index = TerrainUtils.Index2D(current, dimensions);
 
-                //Assuming currentVertex = (0,0)
-                neighbouringVertices = new Vector2[8];
-                neighbouringVertices[0] = currentVertex + Vector2.up + Vector2.left;
-                neighbouringVertices[1] = currentVertex + Vector2.up;
-                neighbouringVertices[2] = currentVertex + Vector2.up + Vector2.right;
-                neighbouringVertices[3] = currentVertex + Vector2.left;
-                neighbouringVertices[4] = currentVertex + Vector2.right;
-                neighbouringVertices[5] = currentVertex + Vector2.down + Vector2.left;
-                neighbouringVertices[6] = currentVertex + Vector2.down;
-                neighbouringVertices[7] = currentVertex + Vector2.down + Vector2.right;
+                byte neighborMask = ComputeNeighbors(current, terrainData, dimensions);
+                neighbors[index] = neighborMask;
 
-                foreach (Vector2 neighbour in neighbouringVertices) {
-                    CheckAndPushVertex(neighbour, stack, visited, terrainData, dimensions);
+                visited[index] = true;
+
+                for (int i = 0; i < neighborOffsets.Length; i++) { 
+                    int currentBit = neighborMask & (1 << i);
+                    if (currentBit == 0) continue;
+
+                    Vector2 neighbor = current + neighborOffsets[i];
+
+                    if (visited[TerrainUtils.Index2D(neighbor, dimensions)])
+                        continue;
+
+                    density[index]++;
+
+                    stack.Push(neighbor);
                 }
 
-                landMass.Add(currentVertex); terrainData.Remove(currentVertex);
+                vertices.Add(current); terrainData.Remove(current);
+
+                minX = (current.x < minX.x) ? new Vector2(current.x, current.y) : minX;
+                minY = (current.y < minY.y) ? new Vector2(current.x, current.y) : minY;
+                maxX = (current.x > maxX.x) ? new Vector2(current.x, current.y) : maxX;
+                maxY = (current.y > maxY.y) ? new Vector2(current.x, current.y) : maxY;
             }
+
+            LandMass2D landMass = new(terrainType, maxY, minX, maxX, minY, vertices.ToArray());
+            landMass.seedPoint = CalculateLandMassDensity(landMass.vertices, neighbors, density, dimensions);
+            //landMass.seedPoint = Centroid(landMass.vertices);
 
             output.Add(landMass);
         }
@@ -85,18 +142,63 @@ public class ResourceHandler2D {
         return output;
     }
 
-    private void CheckAndPushVertex(Vector2 vertex, Stack<Vector2> stack, bool[,] visited, HashSet<Vector2> terrainData, int dimensions) {
-        if (vertex.x < 0 || vertex.x >= dimensions || vertex.y < 0 || vertex.y >= dimensions)
-            return;
-        if (visited[(int)vertex.x, (int)vertex.y])
-            return;
-        if (!terrainData.Contains(vertex))
-            return;
+    private Vector2 CalculateLandMassDensity(Vector2[] vertices, byte[] neighbors, float[] density, int dimensions) {
+        Queue<(Vector2, float)> queue = new(); 
 
-        stack.Push(vertex);
+        (Vector2 vertex, float density) maxDensity = (Vector2.zero, float.MinValue);
+        float decayFactor = 0.8f;
+
+        foreach (Vector2 vertex in vertices) { queue.Enqueue((vertex, density[TerrainUtils.Index2D(vertex, dimensions)])); }
+
+        while (queue.Count > 0) {
+            (Vector2 vertex, float decayedDensity) current  = queue.Dequeue();
+
+            if (current.decayedDensity < 1) continue;
+
+            int currentIndex = TerrainUtils.Index2D(current.vertex, dimensions);
+            float propagatedDensity = current.decayedDensity * decayFactor;
+
+            for (int i = 0; i < neighborOffsets.Length; i++) {
+                int currentBit = neighbors[currentIndex] & (1 << i);
+                if (currentBit == 0) continue;
+
+                Vector2 neighbor = current.vertex + neighborOffsets[i];
+                int neighborIndex = TerrainUtils.Index2D(neighbor, dimensions);
+
+                density[neighborIndex] += propagatedDensity;
+                maxDensity = (density[neighborIndex] > maxDensity.density) ? (neighbor, density[neighborIndex]) : maxDensity;
+                queue.Enqueue((neighbor, propagatedDensity));
+            }
+        }
+
+        return maxDensity.vertex;
     }
 
-    private Vector2 Centroid(List<Vector2> coordinates) {
+    private byte ComputeNeighbors(Vector2 current, HashSet<Vector2> set, int dimensions) {
+        byte output = 0;
+
+        for (int i = 0; i < neighborOffsets.Length; i++) {
+            Vector2 proposed = current + neighborOffsets[i];
+
+            if (proposed.x < 0 || proposed.x >= dimensions || proposed.y < 0 || proposed.y >= dimensions)
+                continue;
+            if (!set.Contains(proposed))
+                continue;
+
+            output |= (byte)(1 << i);
+        }
+
+        return output;
+    }
+
+    private float ScoreFunction(LandMass2D landMass, float maxArea, float maxExtent) {
+        float area = landMass.vertices.Length / maxArea;
+        float extent = landMass.GetExtent() / maxExtent;
+
+        return 0.65f * area + 0.35f * extent;
+    }
+
+    private Vector2 Centroid(Vector2[] coordinates) {
         Vector2 output;
         float x = 0f, y = 0f;
 
@@ -105,11 +207,28 @@ public class ResourceHandler2D {
             y += vector.y;
         }
 
-        x /= coordinates.Count;
-        y /= coordinates.Count;
+        x /= coordinates.Length;
+        y /= coordinates.Length;
 
         output = new Vector2(x, y);
 
         return output;
+    }
+
+    public void OnDrawGizmos() {
+        if (_landMasses == null || _landMasses.Count < 1) return;
+        foreach (LandMass2D landMass in _landMasses) {
+            Gizmos.color = landMass.terrainType.color * 2;
+
+            if (landMass.seedPoint == null)
+                continue;
+
+
+            Gizmos.DrawSphere(new Vector3(landMass.maxX.x, 50, landMass.maxX.y), 2);
+            Gizmos.DrawSphere(new Vector3(landMass.maxY.x, 50, landMass.maxY.y), 2);
+            Gizmos.DrawSphere(new Vector3(landMass.minX.x, 50, landMass.minX.y), 2);
+            Gizmos.DrawSphere(new Vector3(landMass.minY.x, 50, landMass.minY.y), 2);
+            //Gizmos.DrawSphere(new Vector3(landMass.seedPoint.x, 50, landMass.seedPoint.y), 2);
+        }
     }
 }

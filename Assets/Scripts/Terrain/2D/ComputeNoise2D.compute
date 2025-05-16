@@ -28,6 +28,7 @@ cbuffer noiseData {
     int dimensions;
     int noiseMode;
     int interpolateMode;
+    bool fractal;
 };
 StructuredBuffer<int> permutationTable;
 
@@ -281,5 +282,8 @@ void ComputeNoise(uint3 id : SV_DispatchThreadID) {
     if (id.x >= (uint) dimensions || id.y >= (uint) dimensions)
         return;
     
-    result[id.y * dimensions + id.x] = Fractal(id.x, id.y);
+    if (fractal)
+        result[id.y * dimensions + id.x] = Fractal(id.x, id.y);
+    else
+        Noise(id.x, id.y);
 }

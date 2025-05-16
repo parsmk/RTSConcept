@@ -345,6 +345,7 @@ GameObject:
   - component: {fileID: 2053792477}
   - component: {fileID: 2053792478}
   - component: {fileID: 2053792480}
+  - component: {fileID: 2053792481}
   m_Layer: 0
   m_Name: MapGenerator
   m_TagString: Untagged
@@ -420,7 +421,7 @@ MonoBehaviour:
   noiseHandler2D: {fileID: 2053792477}
   meshHandler2D: {fileID: 2053792478}
   textureHandler2D: {fileID: 2053792480}
-  mapType: 1
+  resourceHandler2D: {fileID: 2053792481}
   mapWrapper: {fileID: 1695554872}
   mapDimensions: 2
   mapDepth: 1
@@ -440,6 +441,19 @@ MonoBehaviour:
   textureMode: 0
   material: {fileID: 2100000, guid: d4ce0c9aa97baba4aa3d38e79b151f3e, type: 2}
   color: {r: 1, g: 1, b: 1, a: 0}
+--- !u!114 &2053792481
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2053792475}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2d176469a16d1a4fa4e42c8e9f1dfc7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  computeResource2D: {fileID: 0}
 --- !u!1001 &667509116854217892
 PrefabInstance:
   m_ObjectHideFlags: 0

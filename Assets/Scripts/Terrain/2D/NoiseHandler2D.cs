@@ -25,17 +25,19 @@ public class NoiseHandler2D : MonoBehaviour {
     }
 
     private struct NoiseBuffer {
-        public static int size = sizeof(float) * 2 + sizeof(int) * 3;
+        public static int size = sizeof(float) * 2 + sizeof(int) * 4;
         public Vector2 offset;
         public int dimensions;
         public int noiseMode;
         public int interpolateMode;
+        public int fractal;
 
-        public NoiseBuffer(Vector2 offset, int dimensions, int noiseMode, int interpolateMode) {
+        public NoiseBuffer(Vector2 offset, int dimensions, int noiseMode, int interpolateMode, int fractal) {
             this.offset = offset;
             this.dimensions = dimensions;
             this.noiseMode = noiseMode;
             this.interpolateMode = interpolateMode;
+            this.fractal = fractal;
         }
     }
 
@@ -89,6 +91,7 @@ public class NoiseHandler2D : MonoBehaviour {
 
     [Header("NoiseSettings")]
     public readonly int noiseDimensions = 128;
+    public bool fractal = true;
     public NoiseMode2D noiseMode;
     public NoiseInterpolateMode2D interpolateMode;
     public Vector2 mapOffset = Vector2.zero;
@@ -97,156 +100,129 @@ public class NoiseHandler2D : MonoBehaviour {
 
     private static int[] permutationTable;
 
-    public NoiseData2D GenerateNoise2D(NoiseMode2D noiseMode, Vector2 offset) {
-        // Prepare Buffer Data
-        NoiseBuffer noiseData = new NoiseBuffer(mapOffset + offset, noiseDimensions, (int)noiseMode, (int)interpolateMode);
+    public NoiseData2D GenerateNoise(NoiseMode2D noiseMode, Vector2 offset) {
+        if (noiseMode == NoiseMode2D.Worley) { 
+            throw new ArgumentException("Need seedpoints for Worley"); 
+        }
+
+        NoiseBuffer noiseData = new(mapOffset + offset, noiseDimensions, (int)noiseMode, (int)interpolateMode, fractal ? 1 : 0);
         permutationTable ??= GeneratePermutationTable();
-
-        PerlinBuffer perlinData = new PerlinBuffer((int)perlinSettings.tSmoothMode);
-
-        FractalBuffer fractalData = new FractalBuffer(fractalSettings.octaves, fractalSettings.scale, fractalSettings.persistence, fractalSettings.lacunarity);
+        PerlinBuffer perlinData = new((int)perlinSettings.tSmoothMode);
+        FractalBuffer fractalData = new(fractalSettings.octaves, fractalSettings.scale, fractalSettings.persistence, fractalSettings.lacunarity);
         Vector2[] octaveOffsets = GenerateOctaveOffsets();
-
-        WorleyBuffer worleyData = new WorleyBuffer(0);
+        WorleyBuffer worleyData = new(0);
         Vector2[] seedPoints = new Vector2[1];
 
-        // Create Buffers
-        ComputeBuffer resultBuffer = new ComputeBuffer(noiseDimensions * noiseDimensions, sizeof(float));
-        ComputeBuffer noiseBuffer = new ComputeBuffer(1, NoiseBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer permutationBuffer = new ComputeBuffer(permutationTable.Length, sizeof(int));
-
-        ComputeBuffer perlinBuffer = new ComputeBuffer(1, PerlinBuffer.size, ComputeBufferType.Constant);
-
-        ComputeBuffer fractalBuffer = new ComputeBuffer(1, FractalBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer octaveBuffer = new ComputeBuffer(fractalSettings.octaves, sizeof(float) * 2);
-
-        ComputeBuffer worleyBuffer = new ComputeBuffer(1, WorleyBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer seedBuffer = new ComputeBuffer(1, sizeof(float) * 2);
-
-        // Set Buffer Data
-        noiseBuffer.SetData(new[] { noiseData });
-        permutationBuffer.SetData(permutationTable);
-
-        perlinBuffer.SetData(new[] { perlinData });
-
-        fractalBuffer.SetData(new[] { fractalData });
-        octaveBuffer.SetData(octaveOffsets);
-
-        worleyBuffer.SetData(new[] { worleyData });
-        seedBuffer.SetData(seedPoints);
-
-        // Prepare Buffers for Dispatch
         int kernelID = computeNoise2D.FindKernel("ComputeNoise");
-        computeNoise2D.SetBuffer(kernelID, "result", resultBuffer);
-        computeNoise2D.SetConstantBuffer("noiseData", noiseBuffer, 0, NoiseBuffer.size);
-        computeNoise2D.SetBuffer(kernelID, "permutationTable", permutationBuffer);
-
-        computeNoise2D.SetConstantBuffer("perlinData", perlinBuffer, 0, PerlinBuffer.size);
-
-        computeNoise2D.SetConstantBuffer("fractalData", fractalBuffer, 0, FractalBuffer.size);
-        computeNoise2D.SetBuffer(kernelID, "octaveOffsets", octaveBuffer);
-
-        computeNoise2D.SetConstantBuffer("worleyData", worleyBuffer, 0, WorleyBuffer.size);
-        computeNoise2D.SetBuffer(kernelID, "seedPoints", seedBuffer);
-
-        // Dispatch
-        int packets = noiseDimensions / 8;
-        computeNoise2D.Dispatch(kernelID, packets, packets, 1);
-
-        // Retrieve data
         float[] map = new float[noiseDimensions * noiseDimensions];
-        resultBuffer.GetData(map);
 
-        // Release Resources
-        resultBuffer.Release();
-        noiseBuffer.Release();
-        permutationBuffer.Release();
+        using (BufferManager bM = new(computeNoise2D, kernelID)) {
+            bM.PrepareConstantBuffer(noiseData, NoiseBuffer.size, "noiseData");
+            bM.PrepareConstantBuffer(perlinData, PerlinBuffer.size, "perlinData");
+            bM.PrepareBuffer(permutationTable, permutationTable.Length, sizeof(int), "permutationTable");
 
-        perlinBuffer.Release();
+            bM.PrepareConstantBuffer(worleyData, WorleyBuffer.size, "worleyData");
+            bM.PrepareBuffer(seedPoints, seedPoints.Length, sizeof(float) * 2, "seedPoints");
 
-        fractalBuffer.Release();
-        octaveBuffer.Release();
+            bM.PrepareConstantBuffer(fractalData, FractalBuffer.size, "fractalData");
+            bM.PrepareBuffer(octaveOffsets, octaveOffsets.Length, sizeof(float) * 2, "octaveOffsets");
 
-        worleyBuffer.Release();
-        seedBuffer.Release();
+            ComputeBuffer resultBuffer = bM.PrepareOutputBuffer(map.Length, sizeof(float), "result");
 
-        // 1D -> 2D and find Min Max Height
-        float min = float.MaxValue;
-        float max = float.MinValue;
+            int packets = noiseDimensions / 8;
+            computeNoise2D.Dispatch(kernelID, packets, packets, 1);
 
-        for (int y = 0; y < noiseDimensions; y++) {
-            for (int x = 0; x < noiseDimensions; x++) {
-                min = Mathf.Min(map[y * noiseDimensions + x], min);
-                max = Mathf.Max(map[y * noiseDimensions + x], max);
-            }
+            resultBuffer.GetData(map);
+        }
+
+        // Min Max Height
+        (float min, float max) = ComputeMinMax(map);
+
+        return new NoiseData2D(noiseDimensions, min, max, map);
+    }
+
+    public NoiseData2D GenerateNoise(NoiseMode2D noiseMode, Vector2[] seedPoints) {
+        if (noiseMode != NoiseMode2D.Worley || seedPoints == null || seedPoints.Length < 1) {
+            throw new ArgumentException("Seed points are needed to generate Worley noise.");
+        }
+
+        NoiseBuffer noiseData = new(Vector2.zero, noiseDimensions, (int)noiseMode, (int)interpolateMode, fractal ? 1 : 0);
+        permutationTable ??= GeneratePermutationTable();
+        PerlinBuffer perlinData = new(0);
+        FractalBuffer fractalData = new(0, 0, 0, 0);
+        Vector2[] octaveOffsets = new Vector2[] { Vector2.zero };
+        WorleyBuffer worleyData = new(seedPoints.Length);
+
+        int kernelID = computeNoise2D.FindKernel("ComputeNoise");
+        float[] map = new float[noiseDimensions * noiseDimensions];
+
+        using (BufferManager bM = new(computeNoise2D, kernelID)) {
+            bM.PrepareConstantBuffer(noiseData, NoiseBuffer.size, "noiseData");
+            bM.PrepareConstantBuffer(perlinData, PerlinBuffer.size, "perlinData");
+            bM.PrepareBuffer(permutationTable, permutationTable.Length, sizeof(int), "permutationTable");
+
+            bM.PrepareConstantBuffer(worleyData, WorleyBuffer.size, "worleyData");
+            bM.PrepareBuffer(seedPoints, seedPoints.Length, sizeof(float) * 2, "seedPoints");
+
+            bM.PrepareConstantBuffer(fractalData, FractalBuffer.size, "fractalData");
+            bM.PrepareBuffer(octaveOffsets, octaveOffsets.Length, sizeof(float) * 2 , "octaveOffsets");
+
+            ComputeBuffer resultBuffer = bM.PrepareOutputBuffer(map.Length, sizeof(float), "result");
+
+            int packets = noiseDimensions / 8;
+            computeNoise2D.Dispatch(kernelID, packets, packets, 1);
+
+            resultBuffer.GetData(map);
+        }
+
+        // Min Max Height
+        (float min, float max) = ComputeMinMax(map);
+
+        return new NoiseData2D(noiseDimensions, min, max, map);
+    }
+
+    public NoiseData2D NormalizeNoise(NoiseData2D inputNoiseData, float min, float max) {
+        // Prepare Buffer Data
+        NoiseBuffer noiseData = new(Vector2.zero, noiseDimensions, (int)noiseMode, (int)interpolateMode, fractal ? 1 : 0);
+        PerlinBuffer perlinData = new((int)perlinSettings.tSmoothMode);
+        NormalizeBuffer normalizeData = new(min, max);
+
+        int kernelID = computeNoise2D.FindKernel("NormalizeNoise");
+        float[] map = new float[noiseDimensions * noiseDimensions];
+
+        using (BufferManager bM = new(computeNoise2D, kernelID)) {
+            bM.PrepareConstantBuffer(noiseData, NoiseBuffer.size, "noiseData");
+            bM.PrepareConstantBuffer(perlinData, PerlinBuffer.size, "perlinData");
+            bM.PrepareConstantBuffer(normalizeData, NormalizeBuffer.size, "normalizeData");
+            bM.PrepareBuffer(inputNoiseData.map, inputNoiseData.map.Length, sizeof(float), "oldMap");
+
+            ComputeBuffer resultBuffer = bM.PrepareOutputBuffer(map.Length, sizeof(float), "result");
+
+            int packets = noiseDimensions / 8;
+            computeNoise2D.Dispatch(kernelID, packets, packets, 1);
+
+            resultBuffer.GetData(map);
         }
 
         return new NoiseData2D(noiseDimensions, min, max, map);
     }
 
-    public NoiseData2D GenerateNoise2D(NoiseMode2D noiseMode, Vector2[] seedPoints) {
-        NoiseData2D output = new NoiseData2D(0, 0, 0, null);
-        if (noiseMode != NoiseMode2D.Worley || seedPoints == null || seedPoints.Length < 1) {
-            throw new ArgumentException("Seed points are needed to generate Worley noise.");
+    #region Helper Functions
+    private (float min, float max) ComputeMinMax(float[] map) {
+        float min = float.MaxValue;
+        float max = float.MinValue;
+
+        for (int y = 0; y < noiseDimensions; y++) {
+            for (int x = 0; x < noiseDimensions; x++) {
+                int index = TerrainUtils.Index2D(x, y, noiseDimensions);
+                min = Mathf.Min(map[index], min);
+                max = Mathf.Max(map[index], max);
+            }
         }
 
-        return output;
-    }
-    
-    public NoiseData2D GenerateNoise2D(NoiseMode2D noiseMode) {
-        if (noiseMode == NoiseMode2D.Worley)
-            throw new ArgumentException("Seed points are needed to generate Worley noise.");
+        return (min, max);
+    } 
 
-        return GenerateNoise2D(noiseMode, Vector2.zero);
-    }
-
-    public NoiseData2D NormalizeNoise(NoiseData2D inputNoiseData, float min, float max) {
-
-        // Prepare Buffer Data
-        NoiseBuffer noiseData = new NoiseBuffer(Vector2.zero, noiseDimensions, (int)noiseMode, (int)interpolateMode);
-        PerlinBuffer perlinData = new PerlinBuffer((int)perlinSettings.tSmoothMode);
-        NormalizeBuffer normalizeData = new NormalizeBuffer(min, max);
-
-        // Create Buffers
-        ComputeBuffer resultBuffer = new ComputeBuffer(noiseDimensions * noiseDimensions, sizeof(float));
-        ComputeBuffer noiseBuffer = new ComputeBuffer(1, NoiseBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer perlinBuffer = new ComputeBuffer(1, PerlinBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer normalizeBuffer = new ComputeBuffer(1, NormalizeBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer oldMapBuffer = new ComputeBuffer(noiseDimensions * noiseDimensions, sizeof(float));
-
-        // Set necessary Buffer data
-        noiseBuffer.SetData(new[] { noiseData });
-        perlinBuffer.SetData(new[] { perlinData });
-        normalizeBuffer.SetData(new[] { normalizeData });
-        oldMapBuffer.SetData(inputNoiseData.map);
-
-        // Prepare Buffers for Dispatch
-        int kernelID = computeNoise2D.FindKernel("NormalizeNoise");
-        computeNoise2D.SetBuffer(kernelID, "result", resultBuffer);
-        computeNoise2D.SetConstantBuffer("noiseData", noiseBuffer, 0, NoiseBuffer.size);
-        computeNoise2D.SetConstantBuffer("perlinData", perlinBuffer, 0, PerlinBuffer.size);
-        computeNoise2D.SetConstantBuffer("normalizeData", normalizeBuffer, 0, NormalizeBuffer.size);
-        computeNoise2D.SetBuffer(kernelID, "oldMap", oldMapBuffer);
-
-        // Dispatch
-        int packets = noiseDimensions / 8;
-        computeNoise2D.Dispatch(kernelID, packets, packets, 1);
-
-        // Retrieve Data
-        float[] newMap = new float[noiseDimensions * noiseDimensions];
-        resultBuffer.GetData(newMap);
-
-        // Release Resources
-        resultBuffer.Release();
-        noiseBuffer.Release();
-        perlinBuffer.Release();
-        normalizeBuffer.Release();
-        oldMapBuffer.Release();
-
-        return new NoiseData2D(noiseDimensions, min, max, newMap);
-    }
-
-    #region Helper Functions
     private Vector2[] GenerateOctaveOffsets() {
         Vector2[] output = new Vector2[fractalSettings.octaves];
         System.Random prng = new System.Random(fractalSettings.seed);
@@ -271,9 +247,7 @@ public class NoiseHandler2D : MonoBehaviour {
         for (int i = 256; i > 0; i--) {
             int index = UnityEngine.Random.Range(0, i);
 
-            int temp = output[i];
-            output[i] = output[index];
-            output[index] = temp;
+            (output[index], output[i]) = (output[i], output[index]);
         }
 
         for (int i = 0; i < 256; i++) {

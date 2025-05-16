@@ -8,7 +8,6 @@ public class Region {
     public RegionType regionType;
     public string regionName;
 
-
     public Region(GameObject regionObject, RegionType regionType, Mesh mesh, Texture texture) {
         this.regionObject = regionObject;
         this.regionType = regionType;

@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Linq;
+using UnityEngine;
 
 public class TextureHandler2D : MonoBehaviour {
     public enum TextureMode { ColorMap, TerrainMap }
@@ -48,86 +49,67 @@ public class TextureHandler2D : MonoBehaviour {
     public Material material;
     public Color color;
 
-    public Texture2D ComputeTexture(TerrainType[] terrainTypes, int dimensions, float[] map) {
-        TerrainBuffer terrainData = new TerrainBuffer(terrainTypes.Length);
-        TerrainTypeBuffer[] terrainTypesData = new TerrainTypeBuffer[terrainTypes.Length];
-        for (int i = 0; i < terrainTypes.Length; i++) { terrainTypesData[i] = new(terrainTypes[i].color, terrainTypes[i].maxHeight); }
-        ColorBuffer colorData = new ColorBuffer(Color.black);
-
-        ComputeBuffer terrainBuffer = new ComputeBuffer(1, TerrainBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer terrainTypeBuffer = new ComputeBuffer(terrainTypesData.Length, TerrainTypeBuffer.size);
-        ComputeBuffer colorBuffer = new ComputeBuffer(1, ColorBuffer.size, ComputeBufferType.Constant);
-
-        terrainBuffer.SetData(new[] { terrainData });
-        terrainTypeBuffer.SetData(terrainTypesData);
-        colorBuffer.SetData(new[] { colorData });
+    public Texture2D GenerateTexture(TerrainType[] terrainTypes, int dimensions, float[] map) {
+        TerrainBuffer terrainData = new(terrainTypes.Length);
+        TerrainTypeBuffer[] terrainTypeData = terrainTypes.Select(tt => new TerrainTypeBuffer(tt.color, tt.maxHeight)).ToArray();
+        ColorBuffer colorData = new(Color.black);
 
         int kernelID = computeTexture2D.FindKernel("ComputeTexture2D");
-        computeTexture2D.SetBuffer(kernelID, "terrainTypes", terrainTypeBuffer);
-        computeTexture2D.SetConstantBuffer("terrainData", terrainBuffer, 0, TerrainBuffer.size);
-        computeTexture2D.SetConstantBuffer("colorData", colorBuffer, 0, ColorBuffer.size);
+        Texture2D output = null;
 
-        Texture2D output = ComputeTexture(TextureMode.TerrainMap, kernelID, dimensions, map);
+        using (BufferManager bf = new(computeTexture2D, kernelID)) {
+            bf.PrepareBuffer(terrainTypeData, terrainTypeData.Length, TerrainTypeBuffer.size, "terrainTypes");
+            bf.PrepareConstantBuffer(terrainData, TerrainBuffer.size, "terrainData");
+            bf.PrepareConstantBuffer(colorData, ColorBuffer.size, "colorData");
 
-        terrainTypeBuffer.Release();
-        terrainBuffer.Release();
-        colorBuffer.Release();
+            output = GenerateTexture(TextureMode.TerrainMap, kernelID, dimensions, map);
+        }
 
         return output;
     }
 
-    public Texture2D ComputeTexture(Color inputColor, int dimensions, float[] map) {
-        ColorBuffer colorData = new ColorBuffer(inputColor);
-        TerrainBuffer terrainData = new TerrainBuffer(0);
+    public Texture2D GenerateTexture(Color inputColor, int dimensions, float[] map) {
+        ColorBuffer colorData = new(inputColor);
+        TerrainBuffer terrainData = new(0);
         TerrainTypeBuffer[] terrainTypeData = new TerrainTypeBuffer[1];
 
-        ComputeBuffer colorBuffer = new ComputeBuffer(1, ColorBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer terrainBuffer = new ComputeBuffer(1, TerrainBuffer.size, ComputeBufferType.Constant);
-        ComputeBuffer terrainTypeBuffer = new ComputeBuffer(1, TerrainTypeBuffer.size);
-
-        colorBuffer.SetData(new[] { colorData });
-        terrainBuffer.SetData(new[] { terrainData });
-        terrainTypeBuffer.SetData(terrainTypeData);
-
+        Texture2D output = null;
         int kernelID = computeTexture2D.FindKernel("ComputeTexture2D");
-        computeTexture2D.SetConstantBuffer("colorData", colorBuffer, 0, ColorBuffer.size);
-        computeTexture2D.SetConstantBuffer("terrainData", terrainBuffer, 0, TerrainBuffer.size);
-        computeTexture2D.SetBuffer(kernelID, "terrainTypes", terrainTypeBuffer);
 
-        Texture2D output = ComputeTexture(TextureMode.ColorMap, kernelID, dimensions, map);
+        using (BufferManager bf = new(computeTexture2D, kernelID)) {
+            bf.PrepareBuffer(terrainTypeData, terrainTypeData.Length, TerrainTypeBuffer.size, "terrainTypes");
+            bf.PrepareConstantBuffer(terrainData, TerrainBuffer.size, "terrainData");
+            bf.PrepareConstantBuffer(colorData, ColorBuffer.size, "colorData");
 
-        colorBuffer.Release();
-        terrainBuffer.Release();
-        terrainTypeBuffer.Release();
+            output = GenerateTexture(TextureMode.TerrainMap, kernelID, dimensions, map);
+        }
 
         return output;
     }
 
-    private Texture2D ComputeTexture(TextureMode mode, int kernelID, int dimensions, float[] inputMap) {
-        TextureBuffer textureData = new TextureBuffer((int)mode, dimensions);
+    private Texture2D GenerateTexture(TextureMode mode, int kernelID, int dimensions, float[] inputMap) {
+        TextureBuffer textureData = new((int)mode, dimensions);
 
-        RenderTexture resultBuffer = new RenderTexture(dimensions, dimensions, 0, RenderTextureFormat.ARGBHalf); 
-        resultBuffer.enableRandomWrite = true; resultBuffer.Create();
-        ComputeBuffer mapBuffer = new ComputeBuffer(dimensions * dimensions, sizeof(float));
-        ComputeBuffer textureBuffer = new ComputeBuffer(1, TextureBuffer.size, ComputeBufferType.Constant);
+        Texture2D output = null;
 
-        mapBuffer.SetData(inputMap);
-        textureBuffer.SetData(new[] { textureData });
+        using (BufferManager bf = new(computeTexture2D, kernelID)) {
+            bf.PrepareBuffer(inputMap, inputMap.Length, sizeof(float), "map");
+            bf.PrepareConstantBuffer(textureData, TextureBuffer.size, "textureData");
 
-        computeTexture2D.SetTexture(kernelID, "result", resultBuffer);
-        computeTexture2D.SetBuffer(kernelID, "map", mapBuffer);
-        computeTexture2D.SetConstantBuffer("textureData", textureBuffer, 0, TextureBuffer.size);
+            RenderTexture result = new(dimensions, dimensions, 0, RenderTextureFormat.ARGBHalf);
+            result.enableRandomWrite = true; result.Create();
 
-        int packets = dimensions / 8;
-        computeTexture2D.Dispatch(kernelID, packets, packets, 1);
+            computeTexture2D.SetTexture(kernelID, "result", result);
 
-        Texture2D output = new Texture2D(dimensions, dimensions, TextureFormat.RGBAHalf, false);
-        RenderTexture.active = resultBuffer; output.ReadPixels(new Rect(0, 0, dimensions, dimensions), 0, 0); output.Apply();
+            int packets = dimensions / 8;
+            computeTexture2D.Dispatch(kernelID, packets, packets, 1);
 
-        RenderTexture.active = null;
-        resultBuffer.Release();
-        mapBuffer.Release();
-        textureBuffer.Release();
+            output = new(dimensions, dimensions, TextureFormat.RGBAHalf, false); output.wrapMode = TextureWrapMode.Clamp;
+            RenderTexture.active = result; output.ReadPixels(new Rect(0, 0, dimensions, dimensions), 0, 0); output.Apply();
+
+            RenderTexture.active = null;
+            result.Release();
+        }
 
         return output;
     }

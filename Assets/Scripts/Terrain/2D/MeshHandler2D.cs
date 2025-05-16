@@ -30,45 +30,29 @@ public class MeshHandler2D : MonoBehaviour {
 
     public Mesh GenerateMesh(int dimensions, int mapHeight, float[] map) {
         // Prepare Buffer Data
-        MeshBuffer meshData = new MeshBuffer(dimensions, mapHeight);
+        MeshBuffer meshData = new(dimensions, mapHeight);
 
-        // Create Buffers
-        ComputeBuffer triangleBuffer = new ComputeBuffer((dimensions - 1) * (dimensions - 1) * 6, sizeof(int));
-        ComputeBuffer vertexBuffer = new ComputeBuffer(dimensions * dimensions, sizeof(float) * 3);
-        ComputeBuffer uvBuffer = new ComputeBuffer(dimensions * dimensions, sizeof(float) * 2);
-        ComputeBuffer mapBuffer = new ComputeBuffer(dimensions * dimensions, sizeof(float));
-        ComputeBuffer meshBuffer = new ComputeBuffer(1, MeshBuffer.size, ComputeBufferType.Constant);
-
-        // Set Buffer Data
-        mapBuffer.SetData(map);
-        meshBuffer.SetData(new[] { meshData });
-
-        // Prepare Buffers for Dispatch
         int kernelID = computeMesh2D.FindKernel("ComputeMesh");
-        computeMesh2D.SetBuffer(kernelID, "triangles", triangleBuffer);
-        computeMesh2D.SetBuffer(kernelID, "vertexArray", vertexBuffer);
-        computeMesh2D.SetBuffer(kernelID, "uvRays", uvBuffer);
-        computeMesh2D.SetBuffer(kernelID, "map", mapBuffer);
-        computeMesh2D.SetConstantBuffer("meshData", meshBuffer, 0, MeshBuffer.size);
-
-        // Dispatch
-        int packets = dimensions / 8;
-        computeMesh2D.Dispatch(kernelID, packets, packets, 1);
-
-        // Retrieve Data
         int[] triangleArray = new int[(dimensions - 1) * (dimensions - 1) * 6];
         Vector3[] vertexArray = new Vector3[dimensions * dimensions];
         Vector2[] uvRays = new Vector2[dimensions * dimensions];
-        triangleBuffer.GetData(triangleArray);
-        vertexBuffer.GetData(vertexArray);
-        uvBuffer.GetData(uvRays);
 
-        // Release Resources
-        triangleBuffer.Release();
-        vertexBuffer.Release();
-        uvBuffer.Release();
-        mapBuffer.Release();
-        meshBuffer.Release();
+        // Create Buffers
+        using (BufferManager bf = new(computeMesh2D, kernelID)) {
+            bf.PrepareConstantBuffer(meshData, MeshBuffer.size, "meshData");
+            bf.PrepareBuffer(map, map.Length, sizeof(float), "map");
+
+            ComputeBuffer triangleBuffer = bf.PrepareOutputBuffer(triangleArray.Length, sizeof(int), "triangles");
+            ComputeBuffer vertexBuffer = bf.PrepareOutputBuffer(vertexArray.Length, sizeof(float) * 3, "vertexArray");
+            ComputeBuffer uvBuffer = bf.PrepareOutputBuffer(uvRays.Length, sizeof(float) * 2, "uvRays");
+
+            int packets = dimensions / 8;
+            computeMesh2D.Dispatch(kernelID, packets, packets, 1);
+
+            triangleBuffer.GetData(triangleArray);
+            vertexBuffer.GetData(vertexArray);
+            uvBuffer.GetData(uvRays);
+        }
 
         return CreateMesh(vertexArray, uvRays, triangleArray);
     }

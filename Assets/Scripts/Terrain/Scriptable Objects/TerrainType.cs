@@ -37,9 +37,9 @@ public class TerrainType : ScriptableObject{
                                     float.Parse(xmlColor.Attribute("b").Value) / 255f);
 
             TerrainType newTerrainType = CreateInstance(xmlTerrainTypes[i].Attribute("name").Value,
-                                              float.Parse(xmlTerrainTypes[i].Element("maxHeight").Value),
-                                              float.Parse(xmlTerrainTypes[i].Element("minHeight").Value),
-                                              color);
+                                         float.Parse(xmlTerrainTypes[i].Element("maxHeight").Value),
+                                         float.Parse(xmlTerrainTypes[i].Element("minHeight").Value),
+                                         color);
 
             terrainTypes[i] = newTerrainType;
         }
